@@ -2,6 +2,10 @@ import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:8001/api'
 
+// Skip empty/'all' filter values
+const reportParams = (filters) =>
+  Object.fromEntries(['warehouse', 'category', 'status', 'month'].filter(k => filters[k] && filters[k] !== 'all').map(k => [k, filters[k]]))
+
 export const api = {
   async getInventory(filters = {}) {
     const params = new URLSearchParams()
@@ -74,6 +78,16 @@ export const api = {
     return response.data
   },
 
+  async getQuarterlyReports(filters = {}, options = {}) {
+    const response = await axios.get(`${API_BASE_URL}/reports/quarterly`, { params: reportParams(filters), signal: options.signal })
+    return response.data
+  },
+
+  async getMonthlyTrends(filters = {}, options = {}) {
+    const response = await axios.get(`${API_BASE_URL}/reports/monthly-trends`, { params: reportParams(filters), signal: options.signal })
+    return response.data
+  },
+
   async getTasks() {
     const response = await axios.get(`${API_BASE_URL}/tasks`)
     return response.data
@@ -104,3 +118,5 @@ export const api = {
     return response.data
   }
 }
+
+export const isCanceled = (err) => axios.isCancel(err) || err?.name === 'CanceledError'
