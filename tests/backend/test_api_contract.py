@@ -102,3 +102,52 @@ class TestReportsContract:
         assert sum(q["total_orders"] for q in quarterly) == sum(m["order_count"] for m in monthly)
         assert sum(q["total_revenue"] for q in quarterly) == pytest.approx(sum(m["revenue"] for m in monthly), abs=0.05)
         assert all("fulfillment_rate" in q for q in quarterly)
+
+
+class TestStockStatusContract:
+    def test_one_definition_everywhere(self, client):
+        inventory = client.get("/api/inventory").json()
+        summary = client.get("/api/dashboard/summary").json()
+        assert summary["low_stock_items"] == sum(i["stock_status"] == "low_stock" for i in inventory)
+        by_sku = {i["sku"]: i["stock_status"] for i in inventory}
+        for p in client.get("/api/dashboard/top-products", params={"limit": 50}).json():
+            assert p["stock_status"] == by_sku[p["sku"]]
+
+    @pytest.mark.parametrize("qty,reorder,expected", [(100, 100, "low_stock"), (150, 100, "adequate"), (151, 100, "in_stock")])
+    def test_thresholds(self, qty, reorder, expected):
+        import main
+        assert main.stock_status({"quantity_on_hand": qty, "reorder_point": reorder}) == expected
+
+
+class TestTopProductsContract:
+    def test_matches_order_lines(self, client):
+        params = {"warehouse": "Tokyo", "month": "Q3-2025"}
+        orders = client.get("/api/orders", params=params).json()
+        top = client.get("/api/dashboard/top-products", params={**params, "limit": 50}).json()
+        lines = [line for o in orders for line in o["items"]]
+        assert {p["sku"] for p in top} == {line["sku"] for line in lines}
+        for p in top:
+            assert p["warehouse"] == "Tokyo"
+            assert p["units_ordered"] == sum(line["quantity"] for line in lines if line["sku"] == p["sku"])
+
+    def test_limit(self, client):
+        assert len(client.get("/api/dashboard/top-products", params={"limit": 3}).json()) == 3
+        assert client.get("/api/dashboard/top-products", params={"limit": 0}).status_code == 422
+
+
+class TestBacklogContract:
+    def test_backlog_is_the_shortfall_of_backordered_orders(self, client):
+        orders = {o["order_number"]: o for o in client.get("/api/orders", params={"status": "backordered"}).json()}
+        backlog = client.get("/api/backlog").json()
+        assert {b["order_number"] for b in backlog} == set(orders)
+        for b in backlog:
+            line = next(l for l in orders[b["order_number"]]["items"] if l["sku"] == b["item_sku"])
+            assert b["quantity_needed"] == line["quantity"] > b["quantity_available"]
+
+    def test_longest_delayed_first_and_priority_follows_delay(self, client):
+        backlog = client.get("/api/backlog").json()
+        delays = [b["days_delayed"] for b in backlog]
+        assert delays == sorted(delays, reverse=True)
+        for b in backlog:
+            expected = "high" if b["days_delayed"] > 60 else "medium" if b["days_delayed"] > 14 else "low"
+            assert b["priority"] == expected

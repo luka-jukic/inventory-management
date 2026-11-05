@@ -3,8 +3,8 @@
     "id": "1",
     "item_sku": "PCB-001",
     "item_name": "Single Layer PCB Assembly",
-    "current_demand": 300,
-    "forecasted_demand": 450,
+    "current_demand": 838,
+    "forecasted_demand": 1077,
     "trend": "increasing",
     "period": "Next 30 days"
   },
@@ -12,8 +12,8 @@
     "id": "2",
     "item_sku": "PCB-002",
     "item_name": "Dual Layer PCB Assembly",
-    "current_demand": 150,
-    "forecasted_demand": 152,
+    "current_demand": 808,
+    "forecasted_demand": 806,
     "trend": "stable",
     "period": "Next 30 days"
   },
@@ -21,8 +21,8 @@
     "id": "3",
     "item_sku": "PCB-003",
     "item_name": "Multi Layer PCB Assembly",
-    "current_demand": 500,
-    "forecasted_demand": 600,
+    "current_demand": 680,
+    "forecasted_demand": 867,
     "trend": "increasing",
     "period": "Next 30 days"
   },
@@ -30,8 +30,8 @@
     "id": "4",
     "item_sku": "PWM-404",
     "item_name": "PWM Motor Controller",
-    "current_demand": 50,
-    "forecasted_demand": 35,
+    "current_demand": 2770,
+    "forecasted_demand": 2135,
     "trend": "decreasing",
     "period": "Next 30 days"
   },
@@ -39,8 +39,8 @@
     "id": "5",
     "item_sku": "HMD-202",
     "item_name": "Humidity Sensor Module",
-    "current_demand": 800,
-    "forecasted_demand": 950,
+    "current_demand": 34,
+    "forecasted_demand": 45,
     "trend": "increasing",
     "period": "Next 30 days"
   },
@@ -48,8 +48,8 @@
     "id": "6",
     "item_sku": "PRS-203",
     "item_name": "Pressure Sensor Module",
-    "current_demand": 120,
-    "forecasted_demand": 121,
+    "current_demand": 1574,
+    "forecasted_demand": 1588,
     "trend": "stable",
     "period": "Next 30 days"
   },
@@ -57,8 +57,8 @@
     "id": "7",
     "item_sku": "PSU-501",
     "item_name": "5V 10A Switching Power Supply",
-    "current_demand": 250,
-    "forecasted_demand": 252,
+    "current_demand": 542,
+    "forecasted_demand": 541,
     "trend": "stable",
     "period": "Next 30 days"
   },
@@ -66,8 +66,8 @@
     "id": "8",
     "item_sku": "TMP-201",
     "item_name": "Temperature Sensor Module",
-    "current_demand": 180,
-    "forecasted_demand": 182,
+    "current_demand": 58,
+    "forecasted_demand": 58,
     "trend": "stable",
     "period": "Next 30 days"
   },
@@ -75,8 +75,8 @@
     "id": "9",
     "item_sku": "MCU-402",
     "item_name": "32-bit ARM Microcontroller",
-    "current_demand": 95,
-    "forecasted_demand": 96,
+    "current_demand": 769,
+    "forecasted_demand": 775,
     "trend": "stable",
     "period": "Next 30 days"
   }

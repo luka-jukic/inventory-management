@@ -41,14 +41,14 @@
                   <label for="task-due-date">{{ t('tasks.dueDate') }}</label>
                   <input
                     id="task-due-date"
-                    v-model="newTask.dueDate"
+                    v-model="newTask.due_date"
                     type="date"
                     class="task-input"
                   />
                 </div>
 
                 <div class="form-group-btn">
-                  <button @click="handleAddTask" class="task-add-btn" :disabled="!newTask.title.trim() || !newTask.dueDate">
+                  <button @click="handleAddTask" class="task-add-btn" :disabled="!newTask.title.trim() || !newTask.due_date">
                     {{ t('tasks.addTask') }}
                   </button>
                 </div>
@@ -96,10 +96,10 @@
                       <rect x="2" y="3" width="10" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/>
                       <path d="M4.5 1.5V4.5M9.5 1.5V4.5M2 6H12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                     </svg>
-                    {{ formatDueDate(task.dueDate) }}
+                    {{ formatDueDate(task.due_date) }}
                   </div>
-                  <span class="status-badge" :class="getStatusClass(task.dueDate, task.status)">
-                    {{ getStatusText(task.dueDate, task.status) }}
+                  <span class="status-badge" :class="getStatusClass(task.due_date, task.status)">
+                    {{ getStatusText(task.due_date, task.status) }}
                   </span>
                 </div>
               </div>
@@ -116,6 +116,7 @@
 import BaseModal from './BaseModal.vue'
 import { ref, computed } from 'vue'
 import { useI18n } from '../composables/useI18n'
+import { parseLocalDate } from '../utils/dates'
 
 export default {
   name: 'TasksModal',
@@ -140,7 +141,7 @@ export default {
     const newTask = ref({
       title: '',
       priority: 'medium',
-      dueDate: ''
+      due_date: ''
     })
 
     const sortedTasks = computed(() => {
@@ -153,29 +154,29 @@ export default {
     }
 
     const handleAddTask = () => {
-      if (newTask.value.title.trim() && newTask.value.dueDate) {
+      if (newTask.value.title.trim() && newTask.value.due_date) {
         emit('add-task', {
           title: newTask.value.title.trim(),
           priority: newTask.value.priority,
-          dueDate: newTask.value.dueDate
+          due_date: newTask.value.due_date
         })
         newTask.value = {
           title: '',
           priority: 'medium',
-          dueDate: ''
+          due_date: ''
         }
       }
     }
 
     const formatDueDate = (dateString) => {
-      const date = new Date(dateString)
+      const date = parseLocalDate(dateString)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       const dueDate = new Date(date)
       dueDate.setHours(0, 0, 0, 0)
 
       const diffTime = dueDate - today
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) // round: DST days are 23/25 h
 
       const isJapanese = currentLocale.value === 'ja'
 
@@ -198,11 +199,11 @@ export default {
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      const due = new Date(dueDate)
+      const due = parseLocalDate(dueDate)
       due.setHours(0, 0, 0, 0)
 
       const diffTime = due - today
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) // round: DST days are 23/25 h
 
       if (diffDays < 0) return 'overdue'
       if (diffDays <= 1) return 'urgent'

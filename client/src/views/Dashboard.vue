@@ -193,7 +193,7 @@
                   @keydown.enter.self="showBacklogDetail(item)"
                   @keydown.space.self.prevent="showBacklogDetail(item)"
                 >
-                  <td><strong>{{ item.order_id }}</strong></td>
+                  <td><strong>{{ item.order_number }}</strong></td>
                   <td><strong>{{ item.item_sku }}</strong></td>
                   <td>{{ translateProductName(item.item_name) }}</td>
                   <td>{{ item.quantity_needed }}</td>
@@ -327,8 +327,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const summary = ref({})
-    const allOrders = shallowRef([]) // replaced, never mutated
-    const inventoryItems = ref([])
+    const topProductsData = shallowRef([]) // replaced, never mutated
 
     // Modal state
     const showProductModal = ref(false)
@@ -374,65 +373,20 @@ export default {
       return Math.max(...categoryData.value.map(c => c.value))
     })
 
-    const topProducts = computed(() => {
-      // Calculate top products from filtered order data
-      const productMap = {}
-      const invBySku = new Map(inventoryItems.value.map(i => [i.sku, i]))
-
-      // allOrders is already filtered by API based on: month, warehouse, category, status
-      allOrders.value.forEach(order => {
-        if (order.items) {
-          order.items.forEach(item => {
-            const sku = item.sku
-
-            // Find matching inventory item to get full product details
-            // Note: inventoryItems is also filtered by API based on: warehouse, category
-            const invItem = invBySku.get(sku)
-
-            // Skip products that don't match current inventory filters
-            // (e.g., if filtering by warehouse A, don't show products from warehouse B)
-            if (!invItem && (selectedLocation.value !== 'all' || selectedCategory.value !== 'all')) {
-              return // Skip this product as it doesn't match inventory filters
-            }
-
-            if (!productMap[sku]) {
-              productMap[sku] = {
-                name: item.name,
-                sku: sku,
-                category: invItem?.category || 'Unknown',
-                warehouse: invItem?.warehouse || 'Unknown',
-                unitsOrdered: 0,
-                revenue: 0,
-                stockLevel: invItem ? (invItem.quantity_on_hand > invItem.reorder_point ? 'In Stock' : 'Low Stock') : 'Unknown',
-                firstOrderDate: order.order_date
-              }
-            } else {
-              // Update to EARLIEST order date (to show January at top when selecting All Months)
-              if (order.order_date && (!productMap[sku].firstOrderDate || order.order_date < productMap[sku].firstOrderDate)) {
-                productMap[sku].firstOrderDate = order.order_date
-              }
-            }
-            productMap[sku].unitsOrdered += item.quantity
-            productMap[sku].revenue += item.quantity * item.unit_price
-          })
-        }
-      })
-
-      // Convert to array, sort by first order date (earliest first = January at top), then by revenue, and take top 12
-      return Object.values(productMap)
-        .sort((a, b) => {
-          // Sort by first order date (earliest first)
-          // This ensures products first ordered in January appear before those first ordered in December
-          const dateA = new Date(a.firstOrderDate || '9999-12-31')
-          const dateB = new Date(b.firstOrderDate || '9999-12-31')
-          if (dateA.getTime() !== dateB.getTime()) {
-            return dateA.getTime() - dateB.getTime() // Earlier dates come first
-          }
-          // If dates are equal, sort by revenue (highest first)
-          return b.revenue - a.revenue
-        })
-        .slice(0, 12)
-    })
+    const topProducts = computed(() =>
+      topProductsData.value.map(p => ({
+        name: p.name,
+        sku: p.sku,
+        category: p.category,
+        warehouse: p.warehouse,
+        unitsOrdered: p.units_ordered,
+        revenue: p.revenue,
+        stockLevel: p.stock_status,
+        quantityOnHand: p.quantity_on_hand,
+        reorderPoint: p.reorder_point,
+        firstOrderDate: p.first_order_date
+      }))
+    )
 
     const allBacklogItems = ref([])
 
@@ -441,7 +395,6 @@ export default {
 
     // One AbortController per loader: a new load cancels the previous in-flight one
     let summaryCtrl = null
-    let inventoryCtrl = null
 
     const loadSummary = async () => {
       summaryCtrl?.abort()
@@ -450,13 +403,13 @@ export default {
         loading.value = true
         error.value = null
         const filters = getCurrentFilters()
-        const [summaryData, ordersData, backlogData] = await Promise.all([
+        const [summaryData, topProductsResult, backlogData] = await Promise.all([
           api.getDashboardSummary(filters, { signal: ctrl.signal }),
-          api.getOrders(filters, { signal: ctrl.signal }),
+          api.getTopProducts(filters, { signal: ctrl.signal }),
           api.getBacklog(filters, { signal: ctrl.signal })
         ])
         summary.value = summaryData
-        allOrders.value = ordersData
+        topProductsData.value = topProductsResult
         allBacklogItems.value = backlogData
       } catch (err) {
         if (isCanceled(err)) return
@@ -466,21 +419,9 @@ export default {
       }
     }
 
-    const loadInventory = async () => {
-      inventoryCtrl?.abort()
-      const ctrl = (inventoryCtrl = new AbortController())
-      try {
-        const filters = getCurrentFilters()
-        inventoryItems.value = await api.getInventory(filters, { signal: ctrl.signal })
-      } catch (err) {
-        if (isCanceled(err)) return
-        error.value = t('common.loadFailed', { message: err.message })
-      }
-    }
 
     onBeforeUnmount(() => {
       summaryCtrl?.abort()
-      inventoryCtrl?.abort()
     })
 
     const KPI_GOALS = { turnover: 4.5, fulfilled: 200, fillRate: 95, processing: 3.0 }
@@ -510,8 +451,8 @@ export default {
     }
 
     const getStockBadge = (level) => {
-      if (level === 'In Stock') return 'success'
-      if (level === 'Low Stock') return 'warning'
+      if (level === 'in_stock') return 'success'
+      if (level === 'low_stock') return 'warning'
       return 'danger'
     }
 
@@ -528,8 +469,9 @@ export default {
 
     const translateStockLevel = (stockLevel) => {
       const stockMap = {
-        'In Stock': t('status.inStock'),
-        'Low Stock': t('status.lowStock')
+        in_stock: t('status.inStock'),
+        adequate: t('status.adequate'),
+        low_stock: t('status.lowStock')
       }
       return stockMap[stockLevel] || stockLevel
     }
@@ -566,9 +508,7 @@ export default {
     }
 
     const selectedPOUnitCost = computed(() => {
-      const sku = selectedBacklogForPO.value?.item_sku
-      const inv = inventoryItems.value.find(i => i.sku === sku)
-      return inv ? inv.unit_cost : null
+      return selectedBacklogForPO.value?.unit_cost ?? null
     })
 
     const openPOModal = (item) => {
@@ -594,13 +534,11 @@ export default {
     }
 
     // Watch for filter changes and reload data
-    // Summary, orders + backlog depend on all filters; inventory only on warehouse/category
+    // Summary, top products + backlog depend on all filters
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], loadSummary)
-    watch([selectedLocation, selectedCategory], loadInventory)
 
     onMounted(() => {
       loadSummary()
-      loadInventory()
     })
 
     return {

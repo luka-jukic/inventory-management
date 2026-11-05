@@ -140,7 +140,7 @@ The API base URL is hardcoded. To deploy elsewhere, change `api.js` (and the dir
 
 | Page | API calls | Filters used |
 |---|---|---|
-| Overview | `/dashboard/summary`, `/orders`, `/inventory`, `/backlog` | all four |
+| Overview | `/dashboard/summary`, `/dashboard/top-products`, `/backlog` | all four |
 | Inventory | `/inventory` | warehouse, category |
 | Orders | `/orders` | all four |
 | Finance | `/spending/summary`, `/spending/monthly`, `/spending/categories`, `/spending/transactions`, `/orders` | period (client-side) |
@@ -159,7 +159,8 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 | `/api/orders` | `warehouse`, `category`, `status`, `month` | `Order[]` |
 | `/api/orders/{order_id}` | | `Order`, 404 if unknown |
 | `/api/demand` | | `DemandForecast[]` |
-| `/api/backlog` | `warehouse`, `category`, `status`, `month` (matched on the linked order) | `BacklogItem[]` |
+| `/api/backlog` | `warehouse`, `category`, `status`, `month` (matched on the linked order) | `BacklogItem[]`, computed from Backordered orders whose line needs more than the stock on hand; longest delayed first |
+| `/api/dashboard/top-products` | `warehouse`, `category`, `status`, `month`, `limit` (1-50, default 12) | `TopProduct[]`: products in the filtered orders, earliest first order first, then by revenue |
 | `/api/dashboard/summary` | `warehouse`, `category`, `status`, `month` | `DashboardSummary`: inventory value, low stock, pending orders, backlog count, KPIs (`orders_fulfilled`, `order_fill_rate`, `avg_processing_days`, `inventory_turnover`, `on_time_rate`), order totals (`total_orders`, `total_orders_value`, `avg_order_value`), `revenue_goal` (800K per month in the period), `status_counts`, `inventory_value_by_category` |
 | `/api/spending/summary` | `month` | `SpendingSummary`: totals summed from the monthly rows of the period, plus year-over-year change percentages |
 | `/api/spending/monthly` | | `MonthlySpending[]`, 12 monthly cost records |
@@ -175,7 +176,7 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 | `POST` | `/api/purchase-orders` | `backlog_item_id`, `supplier_name`, `quantity` (>0), `unit_cost` (>0), `expected_delivery_date` (YYYY-MM-DD), `notes?` | 201 `PurchaseOrder`; 404 unknown backlog item; 409 item already has a PO; 422 invalid input |
 | `GET` | `/api/purchase-orders/{backlog_item_id}` | | `PurchaseOrder`, 404 if none |
 | `GET` | `/api/tasks` | | `Task[]`, newest first |
-| `POST` | `/api/tasks` | `title`, `priority` (`high`/`medium`/`low`, default `medium`), `dueDate` (YYYY-MM-DD) | 201 `Task` (`status: pending`) |
+| `POST` | `/api/tasks` | `title`, `priority` (`high`/`medium`/`low`, default `medium`), `due_date` (YYYY-MM-DD) | 201 `Task` (`status: pending`) |
 | `PATCH` | `/api/tasks/{id}` | | `Task` with `status` toggled between `pending` and `completed`; 404 if unknown |
 | `DELETE` | `/api/tasks/{id}` | | 204; 404 if unknown |
 
@@ -193,7 +194,12 @@ curl "http://localhost:8001/api/orders?warehouse=Tokyo&status=shipped"
 
 ## 6. Data model
 
-Files in `server/data/`, loaded by `server/mock_data.py`. The data is a snapshot as of 2025-12-31. `server/generate_data.py` can regenerate `orders.json`. `tests/backend/test_data_integrity.py` checks that the files stay consistent after hand edits.
+Files in `server/data/`, loaded by `server/mock_data.py`. The data is a snapshot as of 2025-12-31.
+
+- `orders.json` and `demand_forecasts.json` are generated from `inventory.json` by `server/generate_data.py` (fixed seed, so the output is reproducible). Orders ship from the warehouse that stocks their items, all lines share the order's category, prices are cost plus 25-60%, statuses follow the dates, and only orders with a line larger than the stock on hand are Backordered.
+- The backlog is not stored: the API computes it from Backordered orders and stock.
+- Stock status (`low_stock` at or below the reorder point, `adequate` up to 1.5x, `in_stock` above) is defined once in the API.
+- `tests/backend/test_data_integrity.py` checks all these rules, so hand edits that break them fail the tests.
 
 Warehouse, category and order status are fixed lists (`Literal` types in `server/main.py`), shared by the data models and the filters.
 
@@ -202,22 +208,21 @@ Warehouse, category and order status are fixed lists (`Literal` types in `server
 | `inventory.json` | 32 | `InventoryItem` |
 | `orders.json` | 250 | `Order` |
 | `demand_forecasts.json` | 9 | `DemandForecast` |
-| `backlog_items.json` | 4 | `BacklogItem` |
 | `transactions.json` | 56 | `Transaction` |
 | `spending.json` | change percentages, 12 months, 4 categories | `MonthlySpending`, `CategorySpending` (totals and percentages are computed, not stored) |
 | `purchase_orders.json` | 0 (new POs are added in memory) | `PurchaseOrder` |
 
-**InventoryItem:** `id`, `sku`, `name`, `category`, `warehouse`, `quantity_on_hand`, `reorder_point`, `unit_cost`, `location`, `last_updated`.
+**InventoryItem:** `id`, `sku`, `name`, `category`, `warehouse`, `quantity_on_hand`, `reorder_point`, `unit_cost`, `location`, `last_updated`; the API adds `stock_status`.
 
 **Order:** `id`, `order_number`, `customer`, `items` (`OrderLine[]`: `sku`, `name`, `quantity`, `unit_price`), `status`, `order_date`, `expected_delivery`, `total_value`, `actual_delivery` (set exactly when `status` is `Delivered`), `warehouse`, `category`.
 
 **DemandForecast:** `id`, `item_sku`, `item_name`, `current_demand`, `forecasted_demand`, `trend`, `period`.
 
-**BacklogItem:** `id`, `order_id` (an order's `order_number`), `item_sku`, `item_name`, `quantity_needed`, `quantity_available`, `days_delayed`, `priority`, `has_purchase_order`.
+**BacklogItem** (computed): `id` (`BL-<order number>-<sku>`), `order_number`, `item_sku`, `item_name`, `quantity_needed` (the order line), `quantity_available` (stock on hand), `days_delayed` (since expected delivery, at the snapshot date), `priority` (`high` > 60 days, `medium` > 14, else `low`), `has_purchase_order`.
 
 **PurchaseOrder:** `id` (`PO-XXXXXXXX`), `backlog_item_id`, `supplier_name`, `quantity`, `unit_cost`, `expected_delivery_date`, `status` (`pending`), `created_date`, `notes`.
 
-**Task:** `id` (`task-xxxxxxxx`), `title`, `priority`, `dueDate`, `status` (`pending`/`completed`).
+**Task:** `id` (`task-xxxxxxxx`), `title`, `priority`, `due_date`, `status` (`pending`/`completed`).
 
 When you change the JSON structure, update the Pydantic model in `server/main.py` too, or responses fail validation.
 
@@ -245,8 +250,9 @@ The test dependencies live in `server/pyproject.toml`, so run pytest from `serve
 | `tests/backend/test_dashboard.py` | Dashboard summary and filters |
 | `tests/backend/test_misc_endpoints.py` | Demand, backlog, spending, root |
 | `tests/backend/test_tasks_and_purchase_orders.py` | Tasks and purchase orders: create, read, toggle, delete, 404/409/422 |
-| `tests/backend/test_data_integrity.py` | Every JSON row validates against its model; unique IDs; SKUs, order numbers and forecasts resolve; totals equal line sums; delivery dates match status and the 2025-12-31 snapshot |
-| `tests/backend/test_api_contract.py` | 422 on unknown filter values, case-insensitive filters, summary/spending/report numbers agree with each other |
+| `tests/backend/test_data_integrity.py` | Every JSON row validates; unique IDs; references resolve; totals equal line sums; orders ship from the warehouse holding the stock and have one category; prices above cost; statuses fit the dates; Backordered exactly when stock is short; cost of goods fits procurement plus stock; forecasts match recent orders |
+| `tests/backend/test_api_contract.py` | 422 on unknown filter values, case-insensitive filters, summary/spending/report numbers agree, one stock status definition, top products and backlog match the orders |
+| `tests/backend/test_openapi_snapshot.py` | The published OpenAPI schema equals `openapi.snapshot.json`; regenerate with `UPDATE_OPENAPI_SNAPSHOT=1` when a change is intended |
 
 Frontend tests run with Vitest in jsdom (config in `client/vite.config.js`):
 
@@ -273,7 +279,7 @@ Visual checks and full flows are done by hand or with Playwright against `http:/
 | Start / stop | Run or stop the two processes from section 2 |
 | Health check | `curl http://localhost:8001/` and open http://localhost:3000 |
 | Reset data | Restart the server; data is read-only and reloaded from JSON |
-| Change data | Edit `server/data/*.json` or run `server/generate_data.py`, then restart |
+| Change data | Edit `inventory.json`/`spending.json`/`transactions.json`, or change and run `server/generate_data.py` for orders and forecasts; run the tests, then restart |
 | Logs | uvicorn writes to the console; there is no log file |
 | Backups | Nothing to back up except the JSON files in git |
 

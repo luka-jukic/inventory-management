@@ -14,7 +14,7 @@ import { useFilters } from '../src/composables/useFilters.js'
 
 const item = (id, priority) => ({
   id,
-  order_id: `ORD-2025-000${id}`,
+  order_number: `ORD-2025-000${id}`,
   item_sku: `SKU-${id}`,
   item_name: `Item ${id}`,
   quantity_needed: 10,

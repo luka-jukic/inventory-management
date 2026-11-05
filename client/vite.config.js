@@ -8,6 +8,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['tests/**/*.test.js']
+    include: ['tests/**/*.test.js'],
+    // West of UTC, so date-only parsing bugs (UTC midnight = previous local day) show up in tests
+    env: { TZ: 'America/Los_Angeles' }
   }
 })

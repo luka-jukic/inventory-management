@@ -204,7 +204,7 @@ class TestDashboardKpisAndBacklogFilters:
     def test_backlog_items_link_to_existing_orders(self, client):
         order_numbers = {o["order_number"] for o in client.get("/api/orders").json()}
         for item in client.get("/api/backlog").json():
-            assert item["order_id"] in order_numbers
+            assert item["order_number"] in order_numbers
 
     def test_backlog_count_follows_filters(self, client):
         total = client.get("/api/dashboard/summary").json()["total_backlog_items"]

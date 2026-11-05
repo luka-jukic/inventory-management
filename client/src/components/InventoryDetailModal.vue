@@ -55,7 +55,7 @@
               <div class="info-item">
                 <div class="info-label">{{ t('detailModal.unitsRemaining') }}</div>
                 <div class="info-value">
-                  <span :style="{ color: inventoryItem.quantity_on_hand <= inventoryItem.reorder_point ? '#ef4444' : '#10b981' }">
+                  <span :style="{ color: inventoryItem.stock_status === 'low_stock' ? '#ef4444' : '#10b981' }">
                     {{ t('detailModal.units', { count: inventoryItem.quantity_on_hand - inventoryItem.reorder_point }) }}
                   </span>
                 </div>
@@ -132,43 +132,34 @@ const close = () => {
   emit('close')
 }
 
-const getStockStatus = () => {
-  if (!props.inventoryItem) return 'Unknown'
-  if (props.inventoryItem.quantity_on_hand <= props.inventoryItem.reorder_point) {
-    return 'Low Stock'
-  } else if (props.inventoryItem.quantity_on_hand <= props.inventoryItem.reorder_point * 1.5) {
-    return 'Adequate'
-  } else {
-    return 'In Stock'
-  }
-}
+const getStockStatus = () => props.inventoryItem?.stock_status
 
 const getStockLabel = () => {
   const status = getStockStatus()
-  if (status === 'Low Stock') return t('status.lowStock')
-  if (status === 'Adequate') return t('status.adequate')
-  if (status === 'In Stock') return t('status.inStock')
+  if (status === 'low_stock') return t('status.lowStock')
+  if (status === 'adequate') return t('status.adequate')
+  if (status === 'in_stock') return t('status.inStock')
   return t('detailModal.unknown')
 }
 
 const getStockStatusClass = () => {
   const status = getStockStatus()
-  if (status === 'Low Stock') return 'danger'
-  if (status === 'Adequate') return 'warning'
+  if (status === 'low_stock') return 'danger'
+  if (status === 'adequate') return 'warning'
   return 'success'
 }
 
 const getStockIconClass = () => {
   const status = getStockStatus()
-  if (status === 'Low Stock') return 'danger-icon'
-  if (status === 'Adequate') return 'warning-icon'
+  if (status === 'low_stock') return 'danger-icon'
+  if (status === 'adequate') return 'warning-icon'
   return 'success-icon'
 }
 
 const getSummaryCardClass = () => {
   const status = getStockStatus()
-  if (status === 'Low Stock') return 'danger-card'
-  if (status === 'Adequate') return 'warning-card'
+  if (status === 'low_stock') return 'danger-card'
+  if (status === 'adequate') return 'warning-card'
   return 'success-card'
 }
 </script>
