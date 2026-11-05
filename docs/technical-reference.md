@@ -41,7 +41,7 @@ server/mock_data.py  ── loads server/data/*.json once at start
 
 **Data flow.** A filter change updates the shared filter state. Each page watches it, calls `api.js`, and the server filters the in-memory lists and returns JSON. Pages keep raw data in `ref`s and derive totals in `computed` properties.
 
-There is no database, no authentication and no write path on the server. Restarting the server resets everything.
+There is no database and no authentication. Tasks and purchase orders can be created, but they live in memory; restarting the server resets everything.
 
 ## 2. Requirements and setup
 
@@ -125,6 +125,7 @@ The API base URL is hardcoded. To deploy elsewhere, change `api.js` (and the dir
 | `ProfileMenu.vue` | Profile dropdown, task count badge |
 | `ProfileDetailsModal.vue` | Mock user profile |
 | `TasksModal.vue` | Add, toggle, delete tasks |
+| `PurchaseOrderModal.vue` | Create a purchase order for a shortage, or view the existing one |
 | `InventoryDetailModal.vue`, `ProductDetailModal.vue`, `BacklogDetailModal.vue`, `CostDetailModal.vue` | Read-only detail dialogs |
 
 ### Composables
@@ -148,7 +149,7 @@ The API base URL is hardcoded. To deploy elsewhere, change `api.js` (and the dir
 
 ## 5. REST API
 
-Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs` (FastAPI default). All endpoints are `GET` and return JSON.
+Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs` (FastAPI default). All endpoints return JSON. Errors return `{"detail": "..."}`.
 
 | Path | Query params | Response |
 |---|---|---|
@@ -166,6 +167,17 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 | `/api/spending/transactions` | | Transactions |
 | `/api/reports/quarterly` | | Per-quarter metrics |
 | `/api/reports/monthly-trends` | | Per-month metrics |
+
+**Write endpoints.** Stored in memory only; a server restart clears them.
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `POST` | `/api/purchase-orders` | `backlog_item_id`, `supplier_name`, `quantity` (>0), `unit_cost` (>0), `expected_delivery_date` (YYYY-MM-DD), `notes?` | 201 `PurchaseOrder`; 404 unknown backlog item; 409 item already has a PO; 422 invalid input |
+| `GET` | `/api/purchase-orders/{backlog_item_id}` | | `PurchaseOrder`, 404 if none |
+| `GET` | `/api/tasks` | | `Task[]`, newest first |
+| `POST` | `/api/tasks` | `title`, `priority` (`high`/`medium`/`low`, default `medium`), `dueDate` (YYYY-MM-DD) | 201 `Task` (`status: pending`) |
+| `PATCH` | `/api/tasks/{id}` | | `Task` with `status` toggled between `pending` and `completed`; 404 if unknown |
+| `DELETE` | `/api/tasks/{id}` | | 204; 404 if unknown |
 
 **Filter rules.**
 - `all` or a missing parameter means no filter.
@@ -190,7 +202,7 @@ Files in `server/data/`, loaded by `server/mock_data.py`. `server/generate_data.
 | `backlog_items.json` | 4 | `BacklogItem` |
 | `transactions.json` | 56 | transaction dict |
 | `spending.json` | summary, 12 months, 4 categories | dicts |
-| `purchase_orders.json` | 0 | `PurchaseOrder` (unused) |
+| `purchase_orders.json` | 0 (new POs are added in memory) | `PurchaseOrder` |
 
 **InventoryItem:** `id`, `sku`, `name`, `category`, `warehouse`, `quantity_on_hand`, `reorder_point`, `unit_cost`, `location`, `last_updated`.
 
@@ -199,6 +211,10 @@ Files in `server/data/`, loaded by `server/mock_data.py`. `server/generate_data.
 **DemandForecast:** `id`, `item_sku`, `item_name`, `current_demand`, `forecasted_demand`, `trend`, `period`.
 
 **BacklogItem:** `id`, `order_id`, `item_sku`, `item_name`, `quantity_needed`, `quantity_available`, `days_delayed`, `priority`, `has_purchase_order`.
+
+**PurchaseOrder:** `id` (`PO-XXXXXXXX`), `backlog_item_id`, `supplier_name`, `quantity`, `unit_cost`, `expected_delivery_date`, `status` (`pending`), `created_date`, `notes`.
+
+**Task:** `id` (`task-xxxxxxxx`), `title`, `priority`, `dueDate`, `status` (`pending`/`completed`).
 
 When you change the JSON structure, update the Pydantic model in `server/main.py` too, or responses fail validation.
 
@@ -213,16 +229,19 @@ When you change the JSON structure, update the Pydantic model in `server/main.py
 ## 8. Testing
 
 ```bash
-cd tests
-uv run pytest -v                       # 40 tests
-uv run pytest --cov=../server          # with coverage
+cd server
+uv run --dev pytest ../tests/backend -c ../tests/pytest.ini -v                    # 60 tests
+uv run --dev pytest ../tests/backend -c ../tests/pytest.ini --cov=.               # with coverage
 ```
+
+The test dependencies live in `server/pyproject.toml`, so run pytest from `server/`. `cd tests && uv run pytest` fails with "Failed to spawn: pytest".
 
 | File | Covers |
 |---|---|
 | `tests/backend/test_inventory.py` | Inventory list, filters, single item |
 | `tests/backend/test_dashboard.py` | Dashboard summary and filters |
 | `tests/backend/test_misc_endpoints.py` | Demand, backlog, spending, root |
+| `tests/backend/test_tasks_and_purchase_orders.py` | Tasks and purchase orders: create, read, toggle, delete, 404/409/422 |
 
 The frontend has no automated tests. Orders and reports endpoints have no tests. Browser checks are done by hand or with Playwright against `http://localhost:3000`.
 

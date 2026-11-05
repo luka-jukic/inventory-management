@@ -59,7 +59,10 @@ export default {
       daysDelayed: '遅延日数',
       priority: '優先度',
       unitsShort: '単位不足',
-      days: '日'
+      days: '日',
+      actions: '操作',
+      createPO: '発注書を作成',
+      viewPO: '発注書を表示'
     },
     topProducts: {
       title: '収益別トップ製品',
@@ -316,6 +319,28 @@ export default {
   },
 
   // Common
+  purchaseOrder: {
+    createTitle: '発注書を作成',
+    viewTitle: '発注書',
+    item: '品目',
+    orderId: '注文ID',
+    shortage: '不足数',
+    units: '個',
+    supplier: '仕入先',
+    quantity: '数量',
+    unitCost: '単価',
+    total: '合計',
+    expectedDelivery: '納品予定日',
+    createdDate: '作成日',
+    status: 'ステータス',
+    notes: '備考',
+    loading: '発注書を読み込み中...',
+    loadError: '発注書を読み込めませんでした。',
+    saveError: '発注書を作成できませんでした。',
+    submit: '発注書を作成',
+    saving: '保存中...',
+    close: '閉じる'
+  },
   common: {
     loading: '読み込み中...',
     error: 'エラー',

@@ -78,7 +78,11 @@ Reports ignores all filters. Inventory has no time dimension, so Time Period doe
 - *Order Health*: ring chart of orders by status (Delivered, Shipped, Processing, Backordered) with the total in the middle. Revenue, Avg Order Value, On-Time Rate and Avg Fulfillment (days) are shown next to it.
 - *Inventory Value by Category*: one bar per category.
 
-**Inventory Shortages.** Orders that cannot be filled from stock. Columns: Order ID, SKU, Item Name, Quantity Needed, Quantity Available, Shortage, Days Delayed, Priority, Actions. Click a row to see its details. The "Create PO" button is meant to raise a purchase order (see [Known Issues](known-issues.md)).
+**Inventory Shortages.** Orders that cannot be filled from stock. Columns: Order ID, SKU, Item Name, Quantity Needed, Quantity Available, Shortage, Days Delayed, Priority, Actions. Click a row to see its details. Click "Create PO" to raise a purchase order for the shortage: enter supplier, quantity (pre-filled with the shortage), unit cost (pre-filled from inventory), expected delivery date and optional notes. Once a PO exists the button changes to "View PO". Only one PO per shortage is allowed.
+
+| Create PO | View PO |
+|---|---|
+| ![Create purchase order](images/15-create-po.png) | ![View purchase order](images/16-view-po.png) |
 
 **Top Products by Revenue.** Twelve products with SKU, category, units ordered, revenue, first order date and stock status. Click a row for product details.
 
@@ -172,7 +176,7 @@ Click your name in the top right to open the profile menu:
 
 Tick the box to mark a task done. Click the red x to delete it. Tasks past their due date are marked "Overdue". The coloured bar on the left shows the priority.
 
-Tasks you add are not saved on the server in this version (see [Known Issues](known-issues.md)).
+Tasks you add are saved on the server until it restarts. The built-in example tasks are not stored on the server.
 
 ## 10. Language and currency
 

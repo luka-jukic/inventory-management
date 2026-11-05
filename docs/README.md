@@ -56,3 +56,5 @@ All screenshots were taken with Playwright against the running app at 1440x900 (
 | `images/12-mobile.png` | Phone layout |
 | `images/13-mobile-drawer.png` | Phone navigation drawer |
 | `images/14-inventory-detail.png` | Inventory item detail dialog |
+| `images/15-create-po.png` | Create purchase order dialog |
+| `images/16-view-po.png` | Purchase order after reload (View PO) |
