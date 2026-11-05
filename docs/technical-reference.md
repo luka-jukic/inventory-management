@@ -37,7 +37,7 @@ server/mock_data.py  ── loads server/data/*.json once at start
 | HTTP client | axios | `client/src/api.js` |
 | API | FastAPI, Pydantic 2, uvicorn | `server/main.py` |
 | Data | JSON files, in memory | `server/data/` |
-| Tests | pytest + FastAPI TestClient | `tests/backend/` |
+| Tests | pytest + FastAPI TestClient; Vitest + Vue Test Utils + jsdom | `tests/backend/`, `client/tests/` |
 
 **Data flow.** A filter change updates the shared filter state. Each page watches it, calls `api.js`, and the server filters the in-memory lists and returns JSON. Pages keep raw data in `ref`s and derive totals in `computed` properties.
 
@@ -243,7 +243,23 @@ The test dependencies live in `server/pyproject.toml`, so run pytest from `serve
 | `tests/backend/test_misc_endpoints.py` | Demand, backlog, spending, root |
 | `tests/backend/test_tasks_and_purchase_orders.py` | Tasks and purchase orders: create, read, toggle, delete, 404/409/422 |
 
-The frontend has no automated tests. Orders and reports endpoints have no tests. Browser checks are done by hand or with Playwright against `http://localhost:3000`.
+Frontend tests run with Vitest in jsdom (config in `client/vite.config.js`):
+
+```bash
+cd client
+npm test              # run once
+npm run test:watch    # re-run on change
+```
+
+| File | Covers |
+|---|---|
+| `client/tests/api.test.js` | Filter params skip `all`, inventory sends only warehouse/category, abort signal, `X-API-Token`, `isCanceled` |
+| `client/tests/BaseModal.test.js` | Dialog role and label, focus in, Escape, overlay click, Tab trap, focus return |
+| `client/tests/Backlog.test.js` | Loads with filters, reloads on all four filters, aborts stale and unmounted requests, error display |
+| `client/tests/useFilters.test.js` | Period to `month` mapping, shared state, reset |
+| `client/tests/locales.test.js` | English and Japanese have the same keys and no empty strings |
+
+Visual checks and full flows are done by hand or with Playwright against `http://localhost:3000`.
 
 ## 9. Operations
 

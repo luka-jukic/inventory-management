@@ -40,6 +40,10 @@ uv run python main.py
 # Frontend
 cd client
 npm install && npm run dev
+
+# Tests
+cd client && npm test                                                  # Vitest, client/tests/
+cd server && uv run pytest ../tests/backend -c ../tests/pytest.ini     # pytest
 ```
 
 ## Key Patterns
