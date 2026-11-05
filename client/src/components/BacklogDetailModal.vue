@@ -56,11 +56,6 @@
               </div>
 
               <div class="info-item">
-                <div class="info-label">{{ t('detailModal.expectedDate') }}</div>
-                <div class="info-value">{{ formatDate(backlogItem.expected_date) }}</div>
-              </div>
-
-              <div class="info-item">
                 <div class="info-label">{{ t('inventory.table.status') }}</div>
                 <div class="info-value">
                   <span class="badge danger">{{ t('status.backordered') }}</span>
@@ -80,7 +75,7 @@ import BaseModal from './BaseModal.vue'
 import { computed } from 'vue'
 import { useI18n } from '../composables/useI18n'
 
-const { t, currentLocale, translateProductName } = useI18n()
+const { t, translateProductName } = useI18n()
 
 const props = defineProps({
   isOpen: {
@@ -102,16 +97,6 @@ const shortage = computed(() => {
 
 const close = () => {
   emit('close')
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return t('detailModal.notAvailable')
-  const date = new Date(dateString)
-  return date.toLocaleDateString(currentLocale.value === 'ja' ? 'ja-JP' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
 }
 </script>
 

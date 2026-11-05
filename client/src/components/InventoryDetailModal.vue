@@ -63,13 +63,13 @@
 
               <div class="info-item">
                 <div class="info-label">{{ t('inventory.table.unitCost') }}</div>
-                <div class="info-value">{{ currencySymbol }}{{ inventoryItem.unit_cost.toFixed(2) }}</div>
+                <div class="info-value">{{ money(inventoryItem.unit_cost, 2) }}</div>
               </div>
 
               <div class="info-item">
                 <div class="info-label">{{ t('inventory.table.totalValue') }}</div>
                 <div class="info-value total-value">
-                  {{ currencySymbol }}{{ totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                  {{ money(totalValue, 2) }}
                 </div>
               </div>
 
@@ -98,13 +98,12 @@
 <script setup>
 import BaseModal from './BaseModal.vue'
 import { computed } from 'vue'
+import { formatCurrencyWithDecimals } from '../utils/currency'
 import { useI18n } from '../composables/useI18n'
 
 const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
 
-const currencySymbol = computed(() => {
-  return currentCurrency.value === 'JPY' ? '¥' : '$'
-})
+const money = (n, d = 0) => formatCurrencyWithDecimals(n, currentCurrency.value, d)
 
 const props = defineProps({
   isOpen: {

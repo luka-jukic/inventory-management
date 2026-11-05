@@ -1,9 +1,5 @@
 {
   "spending_summary": {
-    "total_procurement_cost": 7370415.0,
-    "total_operational_cost": 3883507.5,
-    "total_labor_cost": 4959000.0,
-    "total_overhead": 1864522.5,
     "procurement_change": 12.5,
     "operational_change": 5.8,
     "labor_change": 7.3,
@@ -98,26 +94,22 @@
   "category_spending": [
     {
       "category": "Raw Materials",
-      "amount": 2562000,
-      "percentage": 42.5,
+      "amount": 2179200,
       "change": 15.2
     },
     {
       "category": "Components",
-      "amount": 2946000,
-      "percentage": 38.8,
+      "amount": 2505900,
       "change": 10.5
     },
     {
       "category": "Equipment",
-      "amount": 1442400,
-      "percentage": 19.0,
+      "amount": 1226900,
       "change": 8.3
     },
     {
       "category": "Consumables",
-      "amount": 1767000,
-      "percentage": 23.3,
+      "amount": 1503000,
       "change": 12.7
     }
   ]

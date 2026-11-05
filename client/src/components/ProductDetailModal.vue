@@ -41,7 +41,7 @@
 
               <div class="info-item">
                 <div class="info-label">{{ t('detailModal.totalRevenue') }}</div>
-                <div class="info-value">{{ currencySymbol }}{{ product.revenue.toLocaleString() }}</div>
+                <div class="info-value">{{ money(product.revenue) }}</div>
               </div>
 
               <div class="info-item">
@@ -78,14 +78,12 @@
 
 <script setup>
 import BaseModal from './BaseModal.vue'
-import { computed } from 'vue'
+import { formatCurrencyWithDecimals } from '../utils/currency'
 import { useI18n } from '../composables/useI18n'
 
 const { t, currentLocale, currentCurrency } = useI18n()
 
-const currencySymbol = computed(() => {
-  return currentCurrency.value === 'JPY' ? '¥' : '$'
-})
+const money = (n, d = 0) => formatCurrencyWithDecimals(n, currentCurrency.value, d)
 
 const props = defineProps({
   isOpen: {

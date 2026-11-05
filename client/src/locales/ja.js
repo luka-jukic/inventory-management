@@ -217,7 +217,7 @@ export default {
     },
     categorySpending: {
       title: 'カテゴリ別支出',
-      ofTotal: '全体の'
+      ofTotal: '（調達費比）'
     },
     transactions: {
       title: '最近の取引',

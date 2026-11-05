@@ -11,7 +11,19 @@ from fastapi.testclient import TestClient
 server_path = Path(__file__).parent.parent.parent / "server"
 sys.path.insert(0, str(server_path))
 
+import main
 from main import app
+
+
+@pytest.fixture(autouse=True)
+def reset_state():
+    """Purchase orders and tasks are in-memory module lists; give every test a clean copy."""
+    saved_pos, saved_tasks = list(main.purchase_orders), list(main.tasks)
+    main.purchase_orders.clear()
+    main.tasks.clear()
+    yield
+    main.purchase_orders[:] = saved_pos
+    main.tasks[:] = saved_tasks
 
 
 @pytest.fixture

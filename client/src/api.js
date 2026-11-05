@@ -38,14 +38,15 @@ export const api = {
   getDashboardSummary: (filters = {}, options = {}) =>
     get('/dashboard/summary', buildParams(filters), options),
 
-  getSpendingSummary: (options = {}) => get('/spending/summary', undefined, options),
+  getSpendingSummary: (filters = {}, options = {}) =>
+    get('/spending/summary', buildParams(filters, ['month']), options),
 
   getMonthlySpending: (options = {}) => get('/spending/monthly', undefined, options),
 
   getCategorySpending: (options = {}) => get('/spending/categories', undefined, options),
 
-  getTransactions: (options = {}) => get('/spending/transactions', undefined, options),
-
+  getTransactions: (filters = {}, options = {}) =>
+    get('/spending/transactions', buildParams(filters, ['month']), options),
 
   getTasks: (options = {}) => get('/tasks', undefined, options),
 

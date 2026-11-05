@@ -2406,7 +2406,8 @@
     "category": "Sensors",
     "order_date": "2025-11-09T12:29:00",
     "expected_delivery": "2025-11-18T12:29:00",
-    "total_value": 128524.0
+    "total_value": 128524.0,
+    "actual_delivery": "2025-11-18T12:29:00"
   },
   {
     "id": "97",
@@ -2670,7 +2671,8 @@
     "category": "Sensors",
     "order_date": "2025-12-14T11:23:00",
     "expected_delivery": "2025-12-21T11:23:00",
-    "total_value": 78679.9
+    "total_value": 78679.9,
+    "actual_delivery": "2025-12-21T11:23:00"
   },
   {
     "id": "109",
@@ -2777,12 +2779,13 @@
         "unit_price": 445.0
       }
     ],
-    "status": "Delivered",
+    "status": "Shipped",
     "warehouse": "San Francisco",
     "category": "Actuators",
     "order_date": "2025-12-26T15:02:00",
     "expected_delivery": "2026-01-05T15:02:00",
-    "total_value": 734470.75
+    "total_value": 734470.75,
+    "actual_delivery": null
   },
   {
     "id": "113",
@@ -2807,7 +2810,8 @@
     "category": "Controllers",
     "order_date": "2025-12-18T09:45:00",
     "expected_delivery": "2025-12-27T09:45:00",
-    "total_value": 57513.5
+    "total_value": 57513.5,
+    "actual_delivery": "2025-12-27T09:45:00"
   },
   {
     "id": "114",
@@ -2861,8 +2865,8 @@
     "actual_delivery": "2025-12-23T17:39:00"
   },
   {
-    "id": "201",
-    "order_number": "ORD-2025-0201",
+    "id": "116",
+    "order_number": "ORD-2025-0116",
     "customer": "PowerTech Solutions",
     "items": [
       {
@@ -2881,8 +2885,8 @@
     "actual_delivery": "2025-02-24T09:30:00"
   },
   {
-    "id": "202",
-    "order_number": "ORD-2025-0202",
+    "id": "117",
+    "order_number": "ORD-2025-0117",
     "customer": "Industrial Automation Inc",
     "items": [
       {
@@ -2907,8 +2911,8 @@
     "actual_delivery": "2025-03-17T14:20:00"
   },
   {
-    "id": "203",
-    "order_number": "ORD-2025-0203",
+    "id": "118",
+    "order_number": "ORD-2025-0118",
     "customer": "TechnoLabs Corp",
     "items": [
       {
@@ -2927,8 +2931,8 @@
     "actual_delivery": null
   },
   {
-    "id": "204",
-    "order_number": "ORD-2025-0204",
+    "id": "119",
+    "order_number": "ORD-2025-0119",
     "customer": "DataCenter Dynamics",
     "items": [
       {
@@ -2953,8 +2957,8 @@
     "actual_delivery": "2025-05-29T08:15:00"
   },
   {
-    "id": "205",
-    "order_number": "ORD-2025-0205",
+    "id": "120",
+    "order_number": "ORD-2025-0120",
     "customer": "Electronics Warehouse",
     "items": [
       {
@@ -2973,8 +2977,8 @@
     "actual_delivery": null
   },
   {
-    "id": "206",
-    "order_number": "ORD-2025-0206",
+    "id": "121",
+    "order_number": "ORD-2025-0121",
     "customer": "Network Infrastructure Ltd",
     "items": [
       {
@@ -2999,8 +3003,8 @@
     "actual_delivery": "2025-07-31T10:00:00"
   },
   {
-    "id": "207",
-    "order_number": "ORD-2025-0207",
+    "id": "122",
+    "order_number": "ORD-2025-0122",
     "customer": "Smart Systems Corp",
     "items": [
       {
@@ -3019,8 +3023,8 @@
     "actual_delivery": "2025-08-14T13:45:00"
   },
   {
-    "id": "208",
-    "order_number": "ORD-2025-0208",
+    "id": "123",
+    "order_number": "ORD-2025-0123",
     "customer": "Manufacturing Solutions Inc",
     "items": [
       {
@@ -3045,8 +3049,8 @@
     "actual_delivery": null
   },
   {
-    "id": "209",
-    "order_number": "ORD-2025-0209",
+    "id": "124",
+    "order_number": "ORD-2025-0124",
     "customer": "Global Tech Distributors",
     "items": [
       {
@@ -3071,8 +3075,8 @@
     "actual_delivery": "2025-10-23T15:10:00"
   },
   {
-    "id": "210",
-    "order_number": "ORD-2025-0210",
+    "id": "125",
+    "order_number": "ORD-2025-0125",
     "customer": "Advanced Electronics Systems",
     "items": [
       {
@@ -5497,7 +5501,8 @@
     "category": "Sensors",
     "order_date": "2025-11-05T12:29:00",
     "expected_delivery": "2025-11-14T12:29:00",
-    "total_value": 115830.0
+    "total_value": 115830.0,
+    "actual_delivery": "2025-11-14T12:29:00"
   },
   {
     "id": "222",
@@ -5761,7 +5766,8 @@
     "category": "Sensors",
     "order_date": "2025-12-18T11:23:00",
     "expected_delivery": "2025-12-25T11:23:00",
-    "total_value": 83395.29
+    "total_value": 83395.29,
+    "actual_delivery": "2025-12-25T11:23:00"
   },
   {
     "id": "234",
@@ -5868,12 +5874,13 @@
         "unit_price": 445.0
       }
     ],
-    "status": "Delivered",
+    "status": "Shipped",
     "warehouse": "San Francisco",
     "category": "Actuators",
     "order_date": "2025-12-31T15:02:00",
     "expected_delivery": "2026-01-10T15:02:00",
-    "total_value": 789658.25
+    "total_value": 789658.25,
+    "actual_delivery": null
   },
   {
     "id": "238",
@@ -5898,7 +5905,8 @@
     "category": "Controllers",
     "order_date": "2025-12-22T09:45:00",
     "expected_delivery": "2025-12-31T09:45:00",
-    "total_value": 47019.25
+    "total_value": 47019.25,
+    "actual_delivery": "2025-12-31T09:45:00"
   },
   {
     "id": "239",
