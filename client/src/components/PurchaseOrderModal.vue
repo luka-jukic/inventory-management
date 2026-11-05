@@ -13,7 +13,7 @@
                 <div class="info-value">{{ translateProductName(backlogItem.item_name) }}</div>
               </div>
               <div class="info-item">
-                <div class="info-label">SKU</div>
+                <div class="info-label">{{ t('dashboard.inventoryShortages.sku') }}</div>
                 <div class="info-value mono">{{ backlogItem.item_sku }}</div>
               </div>
               <div class="info-item">
