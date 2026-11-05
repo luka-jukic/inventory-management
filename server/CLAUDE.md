@@ -155,8 +155,8 @@ def get_item(item_id: str):
 ### CORS Configuration
 
 **Development:**
-- Allow all origins during development (`allow_origins=["*"]`)
-- Useful for frontend dev server on different port
+- Only the Vite dev server (`http://localhost:3000`) is allowed by default
+- Override with comma-separated `CORS_ORIGINS` env var
 
 **Production:**
 - Restrict to specific origins only
@@ -271,11 +271,11 @@ server/
 - Never commit secrets to git
 
 **Current State:**
-- No authentication (demo only)
-- CORS allows all origins
-- No rate limiting
-- No input validation beyond types
-- Suitable for local development only
+- Optional shared token: set `API_TOKEN` and write endpoints (POST/PATCH/DELETE) require `X-API-Token` (client sends `VITE_API_TOKEN`)
+- CORS restricted to `CORS_ORIGINS` (default localhost:3000)
+- Binds to `127.0.0.1` (override with `HOST`)
+- String length limits on request models
+- No rate limiting, no per-user auth: local development only
 
 ## Quick Reference
 

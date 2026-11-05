@@ -225,7 +225,8 @@ export default {
       description: '説明',
       vendor: 'ベンダー',
       date: '日付',
-      amount: '金額'
+      amount: '金額',
+      details: '取引の詳細'
     }
   },
 
@@ -257,7 +258,8 @@ export default {
     category: 'カテゴリ',
     orderStatus: '注文ステータス',
     all: 'すべて',
-    allMonths: 'すべての月'
+    allMonths: 'すべての月',
+    reset: 'フィルターをすべてリセット'
   },
 
   // Statuses
@@ -357,6 +359,11 @@ export default {
 
   // Tasks Modal
   tasks: {
+    deleteTask: 'タスクを削除',
+    loadError: 'タスクの読み込みに失敗しました。',
+    addError: 'タスクの追加に失敗しました。もう一度お試しください。',
+    deleteError: 'タスクの削除に失敗しました。もう一度お試しください。',
+    toggleError: 'タスクの更新に失敗しました。もう一度お試しください。',
     title: 'マイタスク',
     taskTitle: 'タスク名',
     taskTitlePlaceholder: 'タスク名を入力...',
@@ -364,6 +371,41 @@ export default {
     dueDate: '期限',
     addTask: 'タスクを追加',
     noTasks: 'タスクがありません。上記からタスクを追加してください！'
+  },
+
+  // Detail modals
+  detailModal: {
+    inventoryTitle: '在庫アイテム詳細',
+    backlogTitle: '在庫不足の詳細',
+    productTitle: '製品詳細',
+    costTitle: '{month}のコスト内訳',
+    stockLevel: '在庫レベル',
+    vsReorder: '発注点比',
+    unitsRemaining: '残数量',
+    units: '{count}個',
+    days: '{count}日',
+    priorityBadge: '優先度: {priority}',
+    shortageAmount: '不足数量',
+    daysDelayed: '遅延日数',
+    orderId: '注文ID',
+    itemSku: 'アイテムSKU',
+    quantityNeeded: '必要数量',
+    quantityAvailable: '利用可能数量',
+    expectedDate: '予定日',
+    totalCosts: '総コスト',
+    procurement: '調達',
+    operational: '運営',
+    labor: '労務',
+    overhead: '間接費',
+    ofTotal: '全体の{pct}%',
+    unitsOrdered: '注文数量',
+    totalRevenue: '総収益',
+    currentStock: '現在の在庫',
+    firstOrderDate: '初回注文日',
+    stockStatus: '在庫状況',
+    outOfStock: '在庫切れ',
+    unknown: '不明',
+    notAvailable: 'N/A'
   },
 
   // Language
@@ -407,7 +449,9 @@ export default {
     search: '検索',
     filter: 'フィルター',
     export: 'エクスポート',
-    items: '件'
+    items: '件',
+    noMatch: '条件に一致する項目がありません',
+    loadFailed: 'データの読み込みに失敗しました: {message}'
   },
 
   // Product Names

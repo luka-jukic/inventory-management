@@ -1,9 +1,11 @@
 <template>
-  <div class="profile-menu">
+  <div ref="root" class="profile-menu" @keydown.esc="closeAndFocus">
     <button
+      type="button"
       class="profile-button"
+      aria-haspopup="menu"
+      :aria-expanded="isDropdownOpen"
       @click="toggleDropdown"
-      @blur="handleBlur"
     >
       <div class="avatar">
         {{ getInitials(currentUser.name) }}
@@ -16,12 +18,13 @@
         height="16"
         viewBox="0 0 16 16"
         fill="none"
+        aria-hidden="true"
       >
         <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
 
-    <div v-if="isDropdownOpen" class="dropdown-menu">
+    <div v-if="isDropdownOpen" class="dropdown-menu" role="menu">
       <div class="dropdown-header">
         <div class="avatar-large">
           {{ getInitials(currentUser.name) }}
@@ -35,8 +38,10 @@
       <div class="dropdown-divider"></div>
 
       <button
+        type="button"
+        role="menuitem"
         class="dropdown-item"
-        @mousedown.prevent="showProfileDetails"
+        @click="showProfileDetails"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M9 9C10.6569 9 12 7.65685 12 6C12 4.34315 10.6569 3 9 3C7.34315 3 6 4.34315 6 6C6 7.65685 7.34315 9 9 9Z" stroke="currentColor" stroke-width="1.5"/>
@@ -46,8 +51,10 @@
       </button>
 
       <button
+        type="button"
+        role="menuitem"
         class="dropdown-item"
-        @mousedown.prevent="showTasks"
+        @click="showTasks"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M15 3H3C2.44772 3 2 3.44772 2 4V14C2 14.5523 2.44772 15 3 15H15C15.5523 15 16 14.5523 16 14V4C16 3.44772 15.5523 3 15 3Z" stroke="currentColor" stroke-width="1.5"/>
@@ -60,8 +67,10 @@
       <div class="dropdown-divider"></div>
 
       <button
+        type="button"
+        role="menuitem"
         class="dropdown-item logout"
-        @mousedown.prevent="handleLogout"
+        @click="handleLogout"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <path d="M7 15H4C3.44772 15 3 14.5523 3 14V4C3 3.44772 3.44772 3 4 3H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -74,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useI18n } from '../composables/useI18n'
 
@@ -92,12 +101,17 @@ const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value
 }
 
-const handleBlur = () => {
-  // Delay to allow mousedown events on dropdown items to fire first
-  setTimeout(() => {
-    isDropdownOpen.value = false
-  }, 200)
+const root = ref(null)
+const onDocClick = (e) => {
+  if (isDropdownOpen.value && !root.value?.contains(e.target)) isDropdownOpen.value = false
 }
+const closeAndFocus = () => {
+  if (!isDropdownOpen.value) return
+  isDropdownOpen.value = false
+  root.value?.querySelector('.profile-button')?.focus()
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 const showProfileDetails = () => {
   isDropdownOpen.value = false

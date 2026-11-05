@@ -187,23 +187,28 @@
                 <tr
                   v-for="item in backlogItems"
                   :key="item.id"
+                  class="clickable-row"
+                  tabindex="0"
+                  @click="showBacklogDetail(item)"
+                  @keydown.enter.self="showBacklogDetail(item)"
+                  @keydown.space.self.prevent="showBacklogDetail(item)"
                 >
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;"><strong>{{ item.order_id }}</strong></td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;"><strong>{{ item.item_sku }}</strong></td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">{{ translateProductName(item.item_name) }}</td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">{{ item.quantity_needed }}</td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">{{ item.quantity_available }}</td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">
+                  <td><strong>{{ item.order_id }}</strong></td>
+                  <td><strong>{{ item.item_sku }}</strong></td>
+                  <td>{{ translateProductName(item.item_name) }}</td>
+                  <td>{{ item.quantity_needed }}</td>
+                  <td>{{ item.quantity_available }}</td>
+                  <td>
                     <span class="badge danger">
                       {{ Math.abs(item.quantity_needed - item.quantity_available) }} {{ t('dashboard.inventoryShortages.unitsShort') }}
                     </span>
                   </td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">
+                  <td>
                     <span :style="{ color: item.days_delayed > 7 ? '#ef4444' : '#f59e0b', fontWeight: 600 }">
                       {{ item.days_delayed }} {{ t('dashboard.inventoryShortages.days') }}
                     </span>
                   </td>
-                  <td @click="showBacklogDetail(item)" style="cursor: pointer;">
+                  <td>
                     <span :class="['badge', item.priority]">
                       {{ translatePriority(item.priority) }}
                     </span>
@@ -253,7 +258,10 @@
                   v-for="item in topProducts"
                   :key="item.sku"
                   class="clickable-row"
+                  tabindex="0"
                   @click="showProductDetail(item)"
+                  @keydown.enter.self="showProductDetail(item)"
+                  @keydown.space.self.prevent="showProductDetail(item)"
                 >
                   <td><strong>{{ translateProductName(item.name) }}</strong></td>
                   <td>{{ item.sku }}</td>
@@ -298,8 +306,8 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue'
-import { api } from '../api'
+import { ref, shallowRef, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 import { formatCurrency } from '../utils/currency'
@@ -315,11 +323,11 @@ export default {
     PurchaseOrderModal,
   },
   setup() {
-    const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
+    const { t, currentLocale, currentCurrency, translateProductName, translateWarehouse } = useI18n()
     const loading = ref(true)
     const error = ref(null)
     const summary = ref({})
-    const allOrders = ref([])
+    const allOrders = shallowRef([]) // replaced, never mutated
     const inventoryItems = ref([])
 
     // Modal state
@@ -492,6 +500,7 @@ export default {
     const topProducts = computed(() => {
       // Calculate top products from filtered order data
       const productMap = {}
+      const invBySku = new Map(inventoryItems.value.map(i => [i.sku, i]))
 
       // allOrders is already filtered by API based on: month, warehouse, category, status
       allOrders.value.forEach(order => {
@@ -501,7 +510,7 @@ export default {
 
             // Find matching inventory item to get full product details
             // Note: inventoryItems is also filtered by API based on: warehouse, category
-            const invItem = inventoryItems.value.find(i => i.sku === sku)
+            const invItem = invBySku.get(sku)
 
             // Skip products that don't match current inventory filters
             // (e.g., if filtering by warehouse A, don't show products from warehouse B)
@@ -561,28 +570,52 @@ export default {
       return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
     })
 
-    const loadData = async () => {
+    // One AbortController per loader: a new load cancels the previous in-flight one
+    let summaryCtrl = null
+    let inventoryCtrl = null
+
+    const loadSummary = async () => {
+      summaryCtrl?.abort()
+      const ctrl = (summaryCtrl = new AbortController())
       try {
         loading.value = true
+        error.value = null
         const filters = getCurrentFilters()
-
-        const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
-          api.getDashboardSummary(filters),
-          api.getOrders(filters),
-          api.getInventory(filters),
-          api.getBacklog()
+        const [summaryData, ordersData] = await Promise.all([
+          api.getDashboardSummary(filters, { signal: ctrl.signal }),
+          api.getOrders(filters, { signal: ctrl.signal })
         ])
-
         summary.value = summaryData
         allOrders.value = ordersData
+      } catch (err) {
+        if (isCanceled(err)) return
+        error.value = t('common.loadFailed', { message: err.message })
+      } finally {
+        if (summaryCtrl === ctrl) loading.value = false
+      }
+    }
+
+    const loadInventory = async () => {
+      inventoryCtrl?.abort()
+      const ctrl = (inventoryCtrl = new AbortController())
+      try {
+        const filters = getCurrentFilters()
+        const [inventoryData, backlogData] = await Promise.all([
+          api.getInventory(filters, { signal: ctrl.signal }),
+          api.getBacklog({ signal: ctrl.signal })
+        ])
         inventoryItems.value = inventoryData
         allBacklogItems.value = backlogData
       } catch (err) {
-        error.value = 'Failed to load dashboard data: ' + err.message
-      } finally {
-        loading.value = false
+        if (isCanceled(err)) return
+        error.value = t('common.loadFailed', { message: err.message })
       }
     }
+
+    onBeforeUnmount(() => {
+      summaryCtrl?.abort()
+      inventoryCtrl?.abort()
+    })
 
     const calculatePercentage = (value, goal) => {
       return ((value / goal) * 100).toFixed(2)
@@ -635,12 +668,13 @@ export default {
       return priorityMap[priority] || priority
     }
 
+    const dateFormatter = computed(() =>
+      new Intl.DateTimeFormat(currentLocale.value === 'ja' ? 'ja-JP' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    )
     const formatDate = (dateString) => {
       if (!dateString) return '-'
-      const { currentLocale } = useI18n()
-      const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
       const date = new Date(dateString)
-      return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
+      return isNaN(date.getTime()) ? '-' : dateFormatter.value.format(date)
     }
 
     const showProductDetail = (product) => {
@@ -682,11 +716,14 @@ export default {
     }
 
     // Watch for filter changes and reload data
-    watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
-      loadData()
-    })
+    // Summary + orders depend on all filters; inventory + backlog only on warehouse/category
+    watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], loadSummary)
+    watch([selectedLocation, selectedCategory], loadInventory)
 
-    onMounted(loadData)
+    onMounted(() => {
+      loadSummary()
+      loadInventory()
+    })
 
     return {
       t,
@@ -821,7 +858,7 @@ export default {
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.25rem;
   margin-bottom: 1.5rem;
 }
@@ -1117,6 +1154,11 @@ export default {
   transition: background-color 0.15s ease;
 }
 
+.clickable-row:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
 .clickable-row:hover {
   background: var(--accent-soft) !important;
 }
@@ -1276,5 +1318,12 @@ export default {
   background: var(--text-3);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(100, 116, 139, 0.3);
+}
+
+@media (max-width: 768px) {
+  .charts-grid,
+  .order-health-container {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

@@ -225,7 +225,8 @@ export default {
       description: 'Description',
       vendor: 'Vendor',
       date: 'Date',
-      amount: 'Amount'
+      amount: 'Amount',
+      details: 'Transaction Details'
     }
   },
 
@@ -257,7 +258,8 @@ export default {
     category: 'Category',
     orderStatus: 'Order Status',
     all: 'All',
-    allMonths: 'All Months'
+    allMonths: 'All Months',
+    reset: 'Reset all filters'
   },
 
   // Statuses
@@ -357,6 +359,11 @@ export default {
 
   // Tasks Modal
   tasks: {
+    deleteTask: 'Delete task',
+    loadError: 'Failed to load tasks.',
+    addError: 'Failed to add the task. Please try again.',
+    deleteError: 'Failed to delete the task. Please try again.',
+    toggleError: 'Failed to update the task. Please try again.',
     title: 'My Tasks',
     taskTitle: 'Task Title',
     taskTitlePlaceholder: 'Enter task title...',
@@ -364,6 +371,41 @@ export default {
     dueDate: 'Due Date',
     addTask: 'Add Task',
     noTasks: 'No tasks yet. Add your first task above!'
+  },
+
+  // Detail modals
+  detailModal: {
+    inventoryTitle: 'Inventory Item Details',
+    backlogTitle: 'Inventory Shortage Details',
+    productTitle: 'Product Details',
+    costTitle: '{month} Cost Breakdown',
+    stockLevel: 'Stock Level',
+    vsReorder: 'vs. reorder point',
+    unitsRemaining: 'Units Remaining',
+    units: '{count} units',
+    days: '{count} days',
+    priorityBadge: '{priority} Priority',
+    shortageAmount: 'Shortage Amount',
+    daysDelayed: 'Days Delayed',
+    orderId: 'Order ID',
+    itemSku: 'Item SKU',
+    quantityNeeded: 'Quantity Needed',
+    quantityAvailable: 'Quantity Available',
+    expectedDate: 'Expected Date',
+    totalCosts: 'Total Costs',
+    procurement: 'Procurement',
+    operational: 'Operational',
+    labor: 'Labor',
+    overhead: 'Overhead',
+    ofTotal: '{pct}% of total',
+    unitsOrdered: 'Units Ordered',
+    totalRevenue: 'Total Revenue',
+    currentStock: 'Current Stock',
+    firstOrderDate: 'First Order Date',
+    stockStatus: 'Stock Status',
+    outOfStock: 'Out of Stock',
+    unknown: 'Unknown',
+    notAvailable: 'N/A'
   },
 
   // Language
@@ -407,6 +449,8 @@ export default {
     search: 'Search',
     filter: 'Filter',
     export: 'Export',
-    items: 'items'
+    items: 'items',
+    noMatch: 'No items match your filters',
+    loadFailed: 'Failed to load data: {message}'
   }
 }

@@ -11,19 +11,19 @@
       <div class="stats-grid">
         <div class="stat-card success">
           <div class="stat-label">{{ t('status.delivered') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Delivered').length }}</div>
+          <div class="stat-value">{{ statusCounts.Delivered }}</div>
         </div>
         <div class="stat-card info">
           <div class="stat-label">{{ t('status.shipped') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Shipped').length }}</div>
+          <div class="stat-value">{{ statusCounts.Shipped }}</div>
         </div>
         <div class="stat-card warning">
           <div class="stat-label">{{ t('status.processing') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Processing').length }}</div>
+          <div class="stat-value">{{ statusCounts.Processing }}</div>
         </div>
         <div class="stat-card danger">
           <div class="stat-label">{{ t('status.backordered') }}</div>
-          <div class="stat-value">{{ getOrdersByStatus('Backordered').length }}</div>
+          <div class="stat-value">{{ statusCounts.Backordered }}</div>
         </div>
       </div>
 
@@ -45,6 +45,9 @@
               </tr>
             </thead>
             <tbody>
+              <tr v-if="orders.length === 0">
+                <td colspan="7" class="empty-row">{{ t('common.noMatch') }}</td>
+              </tr>
               <tr v-for="order in orders" :key="order.id">
                 <td class="col-order-number"><strong>{{ order.order_number }}</strong></td>
                 <td class="col-customer">{{ translateCustomerName(order.customer) }}</td>
@@ -54,7 +57,7 @@
                       {{ t('orders.itemsCount', { count: order.items.length }) }}
                     </summary>
                     <div class="items-dropdown">
-                      <div v-for="(item, idx) in order.items" :key="idx" class="item-entry">
+                      <div v-for="item in order.items" :key="item.sku"  class="item-entry">
                         <span class="item-name">{{ translateProductName(item.name) }}</span>
                         <span class="item-meta">{{ t('orders.quantity') }}: {{ item.quantity }} @ {{ currencySymbol }}{{ item.unit_price }}</span>
                       </div>
@@ -79,15 +82,15 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
-import { api } from '../api'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 
 export default {
   name: 'Orders',
   setup() {
-    const { t, currentCurrency, translateProductName, translateCustomerName } = useI18n()
+    const { t, currentLocale, currentCurrency, translateProductName, translateCustomerName } = useI18n()
 
     const currencySymbol = computed(() => {
       return currentCurrency.value === 'JPY' ? '¥' : '$'
@@ -105,11 +108,14 @@ export default {
       getCurrentFilters
     } = useFilters()
 
+    let ctrl = null
     const loadOrders = async () => {
+      ctrl?.abort()
+      const mine = (ctrl = new AbortController())
       try {
         loading.value = true
-        const filters = getCurrentFilters()
-        const fetchedOrders = await api.getOrders(filters)
+        error.value = null
+        const fetchedOrders = await api.getOrders(getCurrentFilters(), { signal: mine.signal })
 
         // Sort orders by order_date (earliest first)
         orders.value = fetchedOrders.sort((a, b) => {
@@ -118,20 +124,25 @@ export default {
           return dateA - dateB
         })
       } catch (err) {
-        error.value = 'Failed to load orders: ' + err.message
+        if (isCanceled(err)) return
+        error.value = t('common.loadFailed', { message: err.message })
       } finally {
-        loading.value = false
+        if (ctrl === mine) loading.value = false
       }
     }
+
+    onBeforeUnmount(() => ctrl?.abort())
 
     // Watch for filter changes and reload data
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
       loadOrders()
     })
 
-    const getOrdersByStatus = (status) => {
-      return orders.value.filter(order => order.status === status)
-    }
+    const statusCounts = computed(() => {
+      const counts = { Delivered: 0, Shipped: 0, Processing: 0, Backordered: 0 }
+      for (const o of orders.value) if (o.status in counts) counts[o.status]++
+      return counts
+    })
 
     const getOrderStatusClass = (status) => {
       const statusMap = {
@@ -143,14 +154,16 @@ export default {
       return statusMap[status] || 'info'
     }
 
-    const formatDate = (dateString) => {
-      const { currentLocale } = useI18n()
-      const locale = currentLocale.value === 'ja' ? 'ja-JP' : 'en-US'
-      return new Date(dateString).toLocaleDateString(locale, {
+    const dateFormatter = computed(() =>
+      new Intl.DateTimeFormat(currentLocale.value === 'ja' ? 'ja-JP' : 'en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       })
+    )
+    const formatDate = (dateString) => {
+      const date = new Date(dateString)
+      return isNaN(date.getTime()) ? '-' : dateFormatter.value.format(date)
     }
 
     onMounted(loadOrders)
@@ -160,7 +173,7 @@ export default {
       loading,
       error,
       orders,
-      getOrdersByStatus,
+      statusCounts,
       getOrderStatusClass,
       formatDate,
       currencySymbol,
@@ -201,6 +214,12 @@ export default {
 
 .col-value {
   width: 120px;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
 }
 
 /* Items details styling */

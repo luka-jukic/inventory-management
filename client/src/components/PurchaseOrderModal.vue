@@ -1,24 +1,10 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="isOpen && backlogItem" class="modal-overlay" @click="close">
-        <div
-          class="modal-container"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="po-modal-title"
-          @click.stop
-        >
-          <div class="modal-header">
-            <h3 id="po-modal-title" class="modal-title">
-              {{ mode === 'view' ? t('purchaseOrder.viewTitle') : t('purchaseOrder.createTitle') }}
-            </h3>
-            <button class="close-button" :aria-label="t('purchaseOrder.close')" @click="close">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
+  <BaseModal
+    :is-open="!!(isOpen && backlogItem)"
+    :title="mode === 'view' ? t('purchaseOrder.viewTitle') : t('purchaseOrder.createTitle')"
+    max-width="600px"
+    @close="close"
+  >
 
           <div class="modal-body">
             <div class="item-summary">
@@ -27,7 +13,7 @@
                 <div class="info-value">{{ translateProductName(backlogItem.item_name) }}</div>
               </div>
               <div class="info-item">
-                <div class="info-label">SKU</div>
+                <div class="info-label">{{ t('dashboard.inventoryShortages.sku') }}</div>
                 <div class="info-value mono">{{ backlogItem.item_sku }}</div>
               </div>
               <div class="info-item">
@@ -124,14 +110,12 @@
               {{ saving ? t('purchaseOrder.saving') : t('purchaseOrder.submit') }}
             </button>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </BaseModal>
 </template>
 
 <script>
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import BaseModal from './BaseModal.vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { api } from '../api'
 import { useI18n } from '../composables/useI18n'
 import { formatCurrencyWithDecimals } from '../utils/currency'
@@ -144,6 +128,7 @@ export default {
     mode: { type: String, default: 'create' },
     unitCost: { type: Number, default: null }
   },
+  components: { BaseModal },
   emits: ['close', 'po-created'],
   setup(props, { emit }) {
     const { t, currentCurrency, translateProductName } = useI18n()
@@ -235,12 +220,6 @@ export default {
       }
     }, { immediate: true })
 
-    const onKeydown = (e) => {
-      if (e.key === 'Escape' && props.isOpen) close()
-    }
-    onMounted(() => document.addEventListener('keydown', onKeydown))
-    onUnmounted(() => document.removeEventListener('keydown', onKeydown))
-
     return {
       t, translateProductName, form, po, loading, saving, error,
       today, shortage, total, isValid, money, submit, close
@@ -250,60 +229,6 @@ export default {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: var(--space-4);
-}
-
-.modal-container {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-5);
-  border-bottom: 1px solid var(--border);
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.025em;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: var(--space-2);
-  display: flex;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
-}
-
-.close-button:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -481,23 +406,4 @@ export default {
   cursor: not-allowed;
 }
 
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.2s ease;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95);
-}
 </style>

@@ -56,8 +56,8 @@
             <div class="chart-area">
               <div v-for="month in monthlyRevenue" :key="month.month" class="bar-group-revenue">
                 <div class="revenue-bars">
-                  <div class="revenue-bar" :style="{ height: getRevenueBarHeight(month.revenue) + '%' }" :title="`Revenue: ${currencySymbol}${month.revenue.toLocaleString()}`"></div>
-                  <div class="cost-bar" :style="{ height: getRevenueBarHeight(month.costs) + '%' }" :title="`Costs: ${currencySymbol}${month.costs.toLocaleString()}`"></div>
+                  <div class="revenue-bar" :style="{ height: getRevenueBarHeight(month.revenue) + '%' }" :title="`${t('finance.revenueVsCosts.revenue')}: ${currencySymbol}${month.revenue.toLocaleString()}`"></div>
+                  <div class="cost-bar" :style="{ height: getRevenueBarHeight(month.costs) + '%' }" :title="`${t('finance.revenueVsCosts.costs')}: ${currencySymbol}${month.costs.toLocaleString()}`"></div>
                 </div>
                 <span class="bar-label">{{ translateMonth(month.month) }}</span>
               </div>
@@ -89,11 +89,19 @@
             </div>
             <div class="chart-area">
               <div v-for="month in monthlySpending" :key="month.month" class="bar-group">
-                <div class="stacked-bar" @click="showCostDetail(month)">
-                  <div class="bar-segment procurement" :style="{ height: getBarHeight(month.procurement) + '%' }" :title="`Procurement: ${currencySymbol}${month.procurement.toLocaleString()}`"></div>
-                  <div class="bar-segment operational" :style="{ height: getBarHeight(month.operational) + '%' }" :title="`Operational: ${currencySymbol}${month.operational.toLocaleString()}`"></div>
-                  <div class="bar-segment labor" :style="{ height: getBarHeight(month.labor) + '%' }" :title="`Labor: ${currencySymbol}${month.labor.toLocaleString()}`"></div>
-                  <div class="bar-segment overhead" :style="{ height: getBarHeight(month.overhead) + '%' }" :title="`Overhead: ${currencySymbol}${month.overhead.toLocaleString()}`"></div>
+                <div
+                  class="stacked-bar"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="`${t('finance.monthlyCostFlow.title')}: ${translateMonth(month.month)}`"
+                  @click="showCostDetail(month)"
+                  @keydown.enter="showCostDetail(month)"
+                  @keydown.space.prevent="showCostDetail(month)"
+                >
+                  <div class="bar-segment procurement" :style="{ height: getBarHeight(month.procurement) + '%' }" :title="`${t('finance.monthlyCostFlow.procurement')}: ${currencySymbol}${month.procurement.toLocaleString()}`"></div>
+                  <div class="bar-segment operational" :style="{ height: getBarHeight(month.operational) + '%' }" :title="`${t('finance.monthlyCostFlow.operational')}: ${currencySymbol}${month.operational.toLocaleString()}`"></div>
+                  <div class="bar-segment labor" :style="{ height: getBarHeight(month.labor) + '%' }" :title="`${t('finance.monthlyCostFlow.labor')}: ${currencySymbol}${month.labor.toLocaleString()}`"></div>
+                  <div class="bar-segment overhead" :style="{ height: getBarHeight(month.overhead) + '%' }" :title="`${t('finance.monthlyCostFlow.overhead')}: ${currencySymbol}${month.overhead.toLocaleString()}`"></div>
                 </div>
                 <span class="bar-label">{{ translateMonth(month.month) }}</span>
               </div>
@@ -148,7 +156,10 @@
                   v-for="transaction in recentTransactions"
                   :key="transaction.id"
                   class="clickable-row"
-                  @click="handleTransactionClick(transaction)"
+                  tabindex="0"
+                  @click="handleTransactionClick(transaction, $event)"
+                  @keydown.enter="handleTransactionClick(transaction, $event)"
+                  @keydown.space.prevent="handleTransactionClick(transaction, $event)"
                 >
                   <td class="transaction-id">{{ transaction.id.toString().padStart(3, '0') }}</td>
                   <td class="transaction-description">{{ transaction.description }}</td>
@@ -163,6 +174,33 @@
       </div>
     </div>
 
+    <div v-if="selectedTransaction" class="tx-backdrop" @click.self="closeTransaction">
+      <div
+        ref="txDialog"
+        class="tx-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tx-dialog-title"
+        tabindex="-1"
+        @keydown.esc="closeTransaction"
+      >
+        <h3 id="tx-dialog-title">{{ t('finance.transactions.details') }}</h3>
+        <dl class="tx-list">
+          <dt>{{ t('finance.transactions.id') }}</dt>
+          <dd>{{ selectedTransaction.id.toString().padStart(3, '0') }}</dd>
+          <dt>{{ t('finance.transactions.description') }}</dt>
+          <dd>{{ selectedTransaction.description }}</dd>
+          <dt>{{ t('finance.transactions.vendor') }}</dt>
+          <dd>{{ selectedTransaction.vendor }}</dd>
+          <dt>{{ t('finance.transactions.date') }}</dt>
+          <dd>{{ formatDateShort(selectedTransaction.date) }}</dd>
+          <dt>{{ t('finance.transactions.amount') }}</dt>
+          <dd>{{ currencySymbol }}{{ selectedTransaction.amount.toLocaleString() }}</dd>
+        </dl>
+        <button type="button" class="tx-close" @click="closeTransaction">{{ t('common.close') }}</button>
+      </div>
+    </div>
+
     <CostDetailModal
       :is-open="showCostModal"
       :cost-data="selectedCostData"
@@ -172,8 +210,8 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
-import { api } from '../api'
+import { ref, shallowRef, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
+import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 import { formatCurrency as formatCurrencyUtil } from '../utils/currency'
@@ -192,7 +230,7 @@ export default {
     const allCategorySpending = ref([])
     const allTransactions = ref([])
     const summaryData = ref({})
-    const allOrders = ref([])
+    const allOrders = shallowRef([]) // replaced, never mutated
 
     // Modal state
     const showCostModal = ref(false)
@@ -347,15 +385,20 @@ export default {
       return Math.ceil(max / 1000) // Return in K
     })
 
+    let ctrl = null
     const loadData = async () => {
+      ctrl?.abort()
+      const mine = (ctrl = new AbortController())
+      const opts = { signal: mine.signal }
       try {
         loading.value = true
+        error.value = null
         const [summaryRes, monthlyRes, categoryRes, transactionsRes, ordersRes] = await Promise.all([
-          api.getSpendingSummary(),
-          api.getMonthlySpending(),
-          api.getCategorySpending(),
-          api.getTransactions(),
-          api.getOrders()
+          api.getSpendingSummary(opts),
+          api.getMonthlySpending(opts),
+          api.getCategorySpending(opts),
+          api.getTransactions(opts),
+          api.getOrders({}, opts)
         ])
 
         summaryData.value = summaryRes
@@ -364,16 +407,14 @@ export default {
         allTransactions.value = transactionsRes
         allOrders.value = ordersRes
       } catch (err) {
-        error.value = 'Failed to load financial data: ' + err.message
+        if (isCanceled(err)) return
+        error.value = t('common.loadFailed', { message: err.message })
       } finally {
-        loading.value = false
+        if (ctrl === mine) loading.value = false
       }
     }
 
-    // Watch for period filter changes
-    watch([selectedPeriod], () => {
-      // Data will automatically update via computed properties
-    })
+    onBeforeUnmount(() => ctrl?.abort())
 
     const formatCurrency = (value) => {
       return formatCurrencyUtil(value, currentCurrency.value)
@@ -391,13 +432,6 @@ export default {
     const getRevenueBarHeight = (value) => {
       const maxValue = maxRevenueValue.value * 1000
       return (value / maxValue) * 100
-    }
-
-    const formatDate = (dateString) => {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-      })
     }
 
     const formatDateShort = (dateString) => {
@@ -447,9 +481,22 @@ export default {
       return spendingCategoryMap[category] || productCategoryMap[category] || category
     }
 
-    const handleTransactionClick = (transaction) => {
-      console.log('Transaction clicked:', transaction)
-      alert(`Transaction Details:\n\nID: ${transaction.id}\nDescription: ${transaction.description}\nVendor: ${transaction.vendor}\nDate: ${formatDateShort(transaction.date)}\nAmount: $${transaction.amount.toLocaleString()}`)
+    // Transaction detail dialog: Escape closes, focus returns to the opener
+    const selectedTransaction = ref(null)
+    const txDialog = ref(null)
+    let txOpener = null
+
+    const handleTransactionClick = async (transaction, event) => {
+      txOpener = event?.currentTarget || null
+      selectedTransaction.value = transaction
+      await nextTick()
+      txDialog.value?.focus()
+    }
+
+    const closeTransaction = () => {
+      selectedTransaction.value = null
+      txOpener?.focus()
+      txOpener = null
     }
 
     const showCostDetail = (monthData) => {
@@ -477,11 +524,13 @@ export default {
       currencySymbol,
       getBarHeight,
       getRevenueBarHeight,
-      formatDate,
       formatDateShort,
       translateMonth,
       translateCategory,
       handleTransactionClick,
+      selectedTransaction,
+      txDialog,
+      closeTransaction,
       showCostModal,
       selectedCostData,
       showCostDetail,
@@ -694,7 +743,7 @@ export default {
 
 .two-column-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
   gap: 1.75rem;
 }
 
@@ -814,6 +863,61 @@ export default {
 
 .transactions-table tbody tr:hover {
   background: var(--bg);
+}
+
+.transactions-table tbody tr.clickable-row:focus-visible,
+.stacked-bar:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.tx-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.tx-dialog {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(420px, 100%);
+}
+
+.tx-dialog:focus {
+  outline: none;
+}
+
+.tx-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  margin: 1rem 0;
+}
+
+.tx-list dt {
+  color: var(--text-muted);
+}
+
+.tx-list dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.tx-close {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
 }
 
 .transactions-table tbody tr.clickable-row:hover {

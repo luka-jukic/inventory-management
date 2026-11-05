@@ -1,6 +1,7 @@
+import os
 from datetime import date
 from uuid import uuid4
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
@@ -24,8 +25,8 @@ def filter_by_month(items: list, month: Optional[str]) -> list:
     if month.startswith('Q'):
         # Handle quarters
         if month in QUARTER_MAP:
-            months = QUARTER_MAP[month]
-            return [item for item in items if any(m in item.get('order_date', '') for m in months)]
+            months = set(QUARTER_MAP[month])
+            return [item for item in items if item.get('order_date', '')[:7] in months]
     else:
         # Direct month match
         return [item for item in items if month in item.get('order_date', '')]
@@ -48,14 +49,22 @@ def apply_filters(items: list, warehouse: Optional[str] = None, category: Option
 
     return filtered
 
-# CORS middleware
+# CORS: only the Vite dev server by default. Override with a comma-separated CORS_ORIGINS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(","),
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "X-API-Token"],
 )
+
+# ponytail: single shared token, off unless API_TOKEN is set; real per-user auth before any deployment
+API_TOKEN = os.getenv("API_TOKEN")
+
+def require_token(x_api_token: Optional[str] = Header(default=None)):
+    if API_TOKEN and x_api_token != API_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid or missing API token")
+
+MAX_TASKS = 1000
 
 # Data models
 class InventoryItem(BaseModel):
@@ -116,11 +125,11 @@ class PurchaseOrder(BaseModel):
 
 class CreatePurchaseOrderRequest(BaseModel):
     backlog_item_id: str
-    supplier_name: str = Field(min_length=1)
+    supplier_name: str = Field(min_length=1, max_length=200)
     quantity: int = Field(gt=0)
     unit_cost: float = Field(gt=0)
     expected_delivery_date: date
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(default=None, max_length=1000)
 
 class Task(BaseModel):
     id: str
@@ -130,7 +139,7 @@ class Task(BaseModel):
     status: Literal["pending", "completed"]
 
 class CreateTaskRequest(BaseModel):
-    title: str = Field(min_length=1)
+    title: str = Field(min_length=1, max_length=200)
     priority: Literal["high", "medium", "low"] = "medium"
     dueDate: date
 
@@ -163,12 +172,14 @@ def get_orders(
     warehouse: Optional[str] = None,
     category: Optional[str] = None,
     status: Optional[str] = None,
-    month: Optional[str] = None
+    month: Optional[str] = None,
+    limit: Optional[int] = Query(default=None, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0)
 ):
-    """Get all orders with optional filtering"""
+    """Get orders with optional filtering; limit/offset paginate (default: all)"""
     filtered_orders = apply_filters(orders, warehouse, category, status)
     filtered_orders = filter_by_month(filtered_orders, month)
-    return filtered_orders
+    return filtered_orders[offset:offset + limit if limit else None]
 
 @app.get("/api/orders/{order_id}", response_model=Order)
 def get_order(order_id: str):
@@ -322,13 +333,13 @@ def get_monthly_trends(
     result.sort(key=lambda x: x['month'])
     return result
 
-@app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201)
+@app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201, dependencies=[Depends(require_token)])
 def create_purchase_order(request: CreatePurchaseOrderRequest):
     """Create a purchase order for a backlog item (one per item)"""
     if not any(item["id"] == request.backlog_item_id for item in backlog_items):
-        raise HTTPException(status_code=404, detail=f"Backlog item {request.backlog_item_id} not found")
+        raise HTTPException(status_code=404, detail="Backlog item not found")
     if any(po["backlog_item_id"] == request.backlog_item_id for po in purchase_orders):
-        raise HTTPException(status_code=409, detail=f"Backlog item {request.backlog_item_id} already has a purchase order")
+        raise HTTPException(status_code=409, detail="Backlog item already has a purchase order")
 
     po = request.model_dump()
     po.update(
@@ -345,13 +356,13 @@ def get_purchase_order_by_backlog_item(backlog_item_id: str):
     """Get the purchase order of a backlog item"""
     po = next((po for po in purchase_orders if po["backlog_item_id"] == backlog_item_id), None)
     if not po:
-        raise HTTPException(status_code=404, detail=f"Purchase order for backlog item {backlog_item_id} not found")
+        raise HTTPException(status_code=404, detail="Purchase order not found")
     return po
 
 def find_task(task_id: str) -> dict:
     task = next((t for t in tasks if t["id"] == task_id), None)
     if not task:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        raise HTTPException(status_code=404, detail="Task not found")
     return task
 
 @app.get("/api/tasks", response_model=List[Task])
@@ -359,9 +370,11 @@ def get_tasks():
     """Get all tasks, newest first"""
     return tasks
 
-@app.post("/api/tasks", response_model=Task, status_code=201)
+@app.post("/api/tasks", response_model=Task, status_code=201, dependencies=[Depends(require_token)])
 def create_task(request: CreateTaskRequest):
     """Create a task"""
+    if len(tasks) >= MAX_TASKS:
+        raise HTTPException(status_code=409, detail="Task limit reached")
     task = {
         "id": f"task-{uuid4().hex[:8]}",
         "title": request.title,
@@ -372,12 +385,12 @@ def create_task(request: CreateTaskRequest):
     tasks.insert(0, task)
     return task
 
-@app.delete("/api/tasks/{task_id}", status_code=204)
+@app.delete("/api/tasks/{task_id}", status_code=204, dependencies=[Depends(require_token)])
 def delete_task(task_id: str):
     """Delete a task"""
     tasks.remove(find_task(task_id))
 
-@app.patch("/api/tasks/{task_id}", response_model=Task)
+@app.patch("/api/tasks/{task_id}", response_model=Task, dependencies=[Depends(require_token)])
 def toggle_task(task_id: str):
     """Toggle a task between pending and completed"""
     task = find_task(task_id)
@@ -386,4 +399,4 @@ def toggle_task(task_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8001)

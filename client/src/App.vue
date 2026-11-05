@@ -38,10 +38,11 @@
     </aside>
     <div v-if="isMobile && mobileOpen" class="backdrop" aria-hidden="true" @click="mobileOpen = false"></div>
 
-    <div class="content">
+    <div class="content" :inert="isMobile && mobileOpen">
       <header class="topbar">
         <button
           type="button"
+          ref="hamburgerRef"
           class="hamburger"
           :aria-label="t('nav.openMenu')"
           :aria-expanded="mobileOpen"
@@ -90,6 +91,7 @@
     <TasksModal
       :is-open="showTasks"
       :tasks="tasks"
+      :error="tasksError"
       @close="showTasks = false"
       @add-task="addTask"
       @delete-task="deleteTask"
@@ -99,7 +101,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from './api'
 import { useAuth } from './composables/useAuth'
@@ -139,6 +141,8 @@ export default {
     const showProfileDetails = ref(false)
     const showTasks = ref(false)
     const apiTasks = ref([])
+    const tasksError = ref('')
+    watch(showTasks, () => { tasksError.value = '' })
 
     // Merge mock tasks from currentUser with API tasks
     const tasks = computed(() => {
@@ -149,21 +153,25 @@ export default {
       try {
         apiTasks.value = await api.getTasks()
       } catch (err) {
+        tasksError.value = t('tasks.loadError')
         console.error('Failed to load tasks:', err)
       }
     }
 
     const addTask = async (taskData) => {
+      tasksError.value = ''
       try {
         const newTask = await api.createTask(taskData)
         // Add new task to the beginning of the array
         apiTasks.value.unshift(newTask)
       } catch (err) {
+        tasksError.value = t('tasks.addError')
         console.error('Failed to add task:', err)
       }
     }
 
     const deleteTask = async (taskId) => {
+      tasksError.value = ''
       try {
         // Check if it's a mock task (from currentUser)
         const isMockTask = currentUser.value.tasks.some(t => t.id === taskId)
@@ -180,11 +188,13 @@ export default {
           apiTasks.value = apiTasks.value.filter(t => t.id !== taskId)
         }
       } catch (err) {
+        tasksError.value = t('tasks.deleteError')
         console.error('Failed to delete task:', err)
       }
     }
 
     const toggleTask = async (taskId) => {
+      tasksError.value = ''
       try {
         // Check if it's a mock task (from currentUser)
         const mockTask = currentUser.value.tasks.find(t => t.id === taskId)
@@ -201,6 +211,7 @@ export default {
           }
         }
       } catch (err) {
+        tasksError.value = t('tasks.toggleError')
         console.error('Failed to toggle task:', err)
       }
     }
@@ -256,6 +267,13 @@ export default {
       if (e.key === 'Escape') mobileOpen.value = false
     }
 
+    const hamburgerRef = ref(null)
+    watch(mobileOpen, async (open) => {
+      await nextTick()
+      if (open) document.querySelector('#sidebar .nav-link')?.focus()
+      else hamburgerRef.value?.focus()
+    })
+
     watch(() => route.path, () => {
       mobileOpen.value = false
     })
@@ -277,6 +295,8 @@ export default {
       navItems,
       collapsed,
       mobileOpen,
+      hamburgerRef,
+      tasksError,
       isMobile,
       toggleCollapsed,
       dark,
@@ -310,7 +330,7 @@ export default {
   --border-strong: #cbd5e1;
   --text-2: #334155;
   --text-3: #475569;
-  --text-faint: #94a3b8;
+  --text-faint: #64748b;
   --c-green-bg: #d1fae5;
   --c-green-fg: #065f46;
   --c-green-tint: #f0fdf4;
