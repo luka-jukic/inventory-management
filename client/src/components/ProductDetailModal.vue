@@ -1,16 +1,10 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="isOpen && product" class="modal-overlay" @click="close">
-        <div class="modal-container" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">Product Details</h3>
-            <button class="close-button" @click="close">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
+  <BaseModal
+    :is-open="!!(isOpen && product)"
+    :title="t('detailModal.productTitle')"
+    max-width="700px"
+    @close="close"
+  >
 
           <div class="modal-body">
             <div class="product-header">
@@ -25,51 +19,51 @@
                 <div class="product-sku">SKU: {{ product.sku }}</div>
               </div>
               <span class="stock-badge" :class="getStockBadgeClass(product.stockLevel)">
-                {{ product.stockLevel }}
+                {{ getStockLabel(product.stockLevel) }}
               </span>
             </div>
 
             <div class="info-grid">
               <div class="info-item">
-                <div class="info-label">Category</div>
+                <div class="info-label">{{ t('inventory.table.category') }}</div>
                 <div class="info-value">{{ product.category }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Warehouse</div>
+                <div class="info-label">{{ t('inventory.table.warehouse') }}</div>
                 <div class="info-value">{{ product.warehouse }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Units Ordered</div>
+                <div class="info-label">{{ t('detailModal.unitsOrdered') }}</div>
                 <div class="info-value">{{ product.unitsOrdered }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Total Revenue</div>
+                <div class="info-label">{{ t('detailModal.totalRevenue') }}</div>
                 <div class="info-value">{{ currencySymbol }}{{ product.revenue.toLocaleString() }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Current Stock</div>
-                <div class="info-value">{{ product.quantityOnHand }} units</div>
+                <div class="info-label">{{ t('detailModal.currentStock') }}</div>
+                <div class="info-value">{{ t('detailModal.units', { count: product.quantityOnHand }) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Reorder Point</div>
-                <div class="info-value">{{ product.reorderPoint }} units</div>
+                <div class="info-label">{{ t('inventory.table.reorderPoint') }}</div>
+                <div class="info-value">{{ t('detailModal.units', { count: product.reorderPoint }) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">First Order Date</div>
+                <div class="info-label">{{ t('detailModal.firstOrderDate') }}</div>
                 <div class="info-value">{{ formatDate(product.firstOrderDate) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Stock Status</div>
+                <div class="info-label">{{ t('detailModal.stockStatus') }}</div>
                 <div class="info-value">
                   <span :class="['badge', getStockBadgeClass(product.stockLevel)]">
-                    {{ product.stockLevel }}
+                    {{ getStockLabel(product.stockLevel) }}
                   </span>
                 </div>
               </div>
@@ -77,19 +71,17 @@
           </div>
 
           <div class="modal-footer">
-            <button class="btn-secondary" @click="close">Close</button>
+            <button class="btn-secondary" @click="close">{{ t('common.close') }}</button>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </BaseModal>
 </template>
 
 <script setup>
+import BaseModal from './BaseModal.vue'
 import { computed } from 'vue'
 import { useI18n } from '../composables/useI18n'
 
-const { currentCurrency } = useI18n()
+const { t, currentLocale, currentCurrency } = useI18n()
 
 const currencySymbol = computed(() => {
   return currentCurrency.value === 'JPY' ? '¥' : '$'
@@ -113,13 +105,20 @@ const close = () => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'N/A'
+  if (!dateString) return t('detailModal.notAvailable')
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(currentLocale.value === 'ja' ? 'ja-JP' : 'en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   })
+}
+
+const getStockLabel = (stockLevel) => {
+  if (stockLevel === 'In Stock') return t('status.inStock')
+  if (stockLevel === 'Low Stock') return t('status.lowStock')
+  if (stockLevel === 'Out of Stock') return t('detailModal.outOfStock')
+  return stockLevel
 }
 
 const getStockBadgeClass = (stockLevel) => {
@@ -131,65 +130,6 @@ const getStockBadgeClass = (stockLevel) => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 1rem;
-}
-
-.modal-container {
-  background: var(--surface);
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-  max-width: 700px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.025em;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-
-.close-button:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -313,23 +253,4 @@ const getStockBadgeClass = (stockLevel) => {
 }
 
 /* Modal transition animations */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.2s ease;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95);
-}
 </style>

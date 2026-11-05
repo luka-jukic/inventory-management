@@ -1,16 +1,10 @@
 <template>
-  <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="isOpen && inventoryItem" class="modal-overlay" @click="close">
-        <div class="modal-container" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">Inventory Item Details</h3>
-            <button class="close-button" @click="close">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
+  <BaseModal
+    :is-open="!!(isOpen && inventoryItem)"
+    :title="t('detailModal.inventoryTitle')"
+    max-width="700px"
+    @close="close"
+  >
 
           <div class="modal-body">
             <div class="item-header">
@@ -26,69 +20,69 @@
                 <div class="item-sku">SKU: {{ inventoryItem.sku }}</div>
               </div>
               <span class="stock-badge" :class="getStockStatusClass()">
-                {{ getStockStatus() }}
+                {{ getStockLabel() }}
               </span>
             </div>
 
             <div class="stock-summary">
               <div class="summary-card primary">
-                <div class="summary-label">Quantity on Hand</div>
-                <div class="summary-value">{{ inventoryItem.quantity_on_hand }} units</div>
+                <div class="summary-label">{{ t('inventory.table.quantityOnHand') }}</div>
+                <div class="summary-value">{{ t('detailModal.units', { count: inventoryItem.quantity_on_hand }) }}</div>
               </div>
               <div class="summary-card" :class="getSummaryCardClass()">
-                <div class="summary-label">Stock Level</div>
+                <div class="summary-label">{{ t('detailModal.stockLevel') }}</div>
                 <div class="summary-value">{{ stockPercentage }}%</div>
-                <div class="summary-subtitle">vs. reorder point</div>
+                <div class="summary-subtitle">{{ t('detailModal.vsReorder') }}</div>
               </div>
             </div>
 
             <div class="info-grid">
               <div class="info-item">
-                <div class="info-label">Category</div>
+                <div class="info-label">{{ t('inventory.table.category') }}</div>
                 <div class="info-value">{{ inventoryItem.category }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Location</div>
+                <div class="info-label">{{ t('inventory.table.location') }}</div>
                 <div class="info-value">{{ inventoryItem.location }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Reorder Point</div>
-                <div class="info-value">{{ inventoryItem.reorder_point }} units</div>
+                <div class="info-label">{{ t('inventory.table.reorderPoint') }}</div>
+                <div class="info-value">{{ t('detailModal.units', { count: inventoryItem.reorder_point }) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Units Remaining</div>
+                <div class="info-label">{{ t('detailModal.unitsRemaining') }}</div>
                 <div class="info-value">
                   <span :style="{ color: inventoryItem.quantity_on_hand <= inventoryItem.reorder_point ? '#ef4444' : '#10b981' }">
-                    {{ inventoryItem.quantity_on_hand - inventoryItem.reorder_point }} units
+                    {{ t('detailModal.units', { count: inventoryItem.quantity_on_hand - inventoryItem.reorder_point }) }}
                   </span>
                 </div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Unit Cost</div>
+                <div class="info-label">{{ t('inventory.table.unitCost') }}</div>
                 <div class="info-value">{{ currencySymbol }}{{ inventoryItem.unit_cost.toFixed(2) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Total Value</div>
+                <div class="info-label">{{ t('inventory.table.totalValue') }}</div>
                 <div class="info-value total-value">
                   {{ currencySymbol }}{{ totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                 </div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Warehouse</div>
+                <div class="info-label">{{ t('inventory.table.warehouse') }}</div>
                 <div class="info-value">{{ translateWarehouse(inventoryItem.location) }}</div>
               </div>
 
               <div class="info-item">
-                <div class="info-label">Status</div>
+                <div class="info-label">{{ t('inventory.table.status') }}</div>
                 <div class="info-value">
                   <span :class="['badge', getStockStatusClass()]">
-                    {{ getStockStatus() }}
+                    {{ getStockLabel() }}
                   </span>
                 </div>
               </div>
@@ -96,19 +90,17 @@
           </div>
 
           <div class="modal-footer">
-            <button class="btn-secondary" @click="close">Close</button>
+            <button class="btn-secondary" @click="close">{{ t('common.close') }}</button>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </BaseModal>
 </template>
 
 <script setup>
+import BaseModal from './BaseModal.vue'
 import { computed } from 'vue'
 import { useI18n } from '../composables/useI18n'
 
-const { currentCurrency, translateProductName, translateWarehouse } = useI18n()
+const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
 
 const currencySymbol = computed(() => {
   return currentCurrency.value === 'JPY' ? '¥' : '$'
@@ -152,6 +144,14 @@ const getStockStatus = () => {
   }
 }
 
+const getStockLabel = () => {
+  const status = getStockStatus()
+  if (status === 'Low Stock') return t('status.lowStock')
+  if (status === 'Adequate') return t('status.adequate')
+  if (status === 'In Stock') return t('status.inStock')
+  return t('detailModal.unknown')
+}
+
 const getStockStatusClass = () => {
   const status = getStockStatus()
   if (status === 'Low Stock') return 'danger'
@@ -175,65 +175,6 @@ const getSummaryCardClass = () => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 1rem;
-}
-
-.modal-container {
-  background: var(--surface);
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-  max-width: 700px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.025em;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-
-.close-button:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -428,23 +369,4 @@ const getSummaryCardClass = () => {
 }
 
 /* Modal transition animations */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 0.2s ease;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(0.95);
-}
 </style>

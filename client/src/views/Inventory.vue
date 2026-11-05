@@ -19,6 +19,7 @@
               v-model="searchQuery"
               type="text"
               :placeholder="t('inventory.searchPlaceholder')"
+              :aria-label="t('inventory.searchPlaceholder')"
               class="search-input"
             />
             <button
@@ -26,6 +27,7 @@
               @click="searchQuery = ''"
               class="clear-search"
               :title="t('inventory.clearSearch')"
+              :aria-label="t('inventory.clearSearch')"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
@@ -49,11 +51,17 @@
               </tr>
             </thead>
             <tbody>
+              <tr v-if="filteredItems.length === 0">
+                <td colspan="9" class="empty-row">{{ t('common.noMatch') }}</td>
+              </tr>
               <tr
                 v-for="item in filteredItems"
                 :key="item.id"
                 class="clickable-row"
+                tabindex="0"
                 @click="showItemDetail(item)"
+                @keydown.enter="showItemDetail(item)"
+                @keydown.space.prevent="showItemDetail(item)"
               >
                 <td><strong>{{ item.sku }}</strong></td>
                 <td>{{ translateProductName(item.name) }}</td>
@@ -84,8 +92,8 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
-import { api } from '../api'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 import InventoryDetailModal from '../components/InventoryDetailModal.vue'
@@ -149,21 +157,28 @@ export default {
       })
     })
 
+    let ctrl = null
     const loadInventory = async () => {
+      ctrl?.abort()
+      const mine = (ctrl = new AbortController())
       try {
         loading.value = true
+        error.value = null
         const filters = getCurrentFilters()
         // Inventory doesn't support month/status filters, only warehouse and category
-        items.value = await api.getInventory({
-          warehouse: filters.warehouse,
-          category: filters.category
-        })
+        items.value = await api.getInventory(
+          { warehouse: filters.warehouse, category: filters.category },
+          { signal: mine.signal }
+        )
       } catch (err) {
-        error.value = 'Failed to load inventory: ' + err.message
+        if (isCanceled(err)) return
+        error.value = t('common.loadFailed', { message: err.message })
       } finally {
-        loading.value = false
+        if (ctrl === mine) loading.value = false
       }
     }
+
+    onBeforeUnmount(() => ctrl?.abort())
 
     // Watch for filter changes and reload data
     watch([selectedLocation, selectedCategory], () => {
@@ -313,6 +328,17 @@ export default {
 .clickable-row {
   cursor: pointer;
   transition: background-color 0.15s ease;
+}
+
+.clickable-row:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
 }
 
 .clickable-row:hover {
