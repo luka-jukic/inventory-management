@@ -217,7 +217,7 @@ export default {
     },
     categorySpending: {
       title: 'Spending by Category',
-      ofTotal: 'of total'
+      ofTotal: 'of procurement'
     },
     transactions: {
       title: 'Recent Transactions',

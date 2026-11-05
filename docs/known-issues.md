@@ -26,6 +26,18 @@ Found while writing this documentation (2026-11-05). File references point to th
 | Reports page was English only and called `localhost:8001` directly | Translated, goes through `api.js` and follows the filters |
 | Reports scrolled sideways at phone width | Chart scrolls inside its card |
 | In Japanese, the smallest "Inventory Value by Category" bar cut off its label | Bars are at least as wide as their label |
+| Ten orders shared IDs and order numbers with other orders (201-210) | Renumbered to the missing 116-125; integrity test checks uniqueness |
+| 8 of 9 demand forecasts and all backlog items used SKUs not in inventory | Forecasts point at real inventory SKUs; integrity test checks every reference |
+| 8 Delivered orders had no delivery date; 2 were delivered after the end of the data | Dates added; the two late ones are Shipped. The generator no longer skips Nov/Dec delivery dates |
+| Spending totals did not match the monthly rows (labor off by 879K); category percentages summed to 123.6% | Totals and percentages are computed by the API |
+| Transactions used warehouses A/B/C | Use the same warehouse names as the rest of the data |
+| An unknown filter value returned an empty list; warehouse matching was case-sensitive | 422 with the allowed values; all filters ignore case |
+| Order lines, spending, summary and report responses were untyped | Pydantic response models for every endpoint; `OrderLine` model |
+| Two purchase orders for the same backlog item could be created at the same moment | Check and insert run under a lock |
+| Spending categories summed to 8.7M while procurement was 7.4M | Categories are a breakdown of procurement and sum to it; label says "of procurement" |
+| Finance filtered months in the browser with `toISOString()`, so in UTC+ time zones the 1st of a month fell into the previous month | The API filters by month |
+| Inventory, Orders, Finance and three dialogs showed ¥ in front of unconverted USD amounts | All amounts go through `utils/currency.js` |
+| Backlog dialog showed an "Expected Date" the API never sends | Row removed |
 
 ## Functional gaps
 
@@ -40,5 +52,6 @@ Found while writing this documentation (2026-11-05). File references point to th
 ## Testing
 
 - Frontend tests cover the API client, `BaseModal`, the Backlog view, filters and locales; the other views have none.
-- `/api/reports/*` has one filter test; `/api/orders` only has pagination and quarter filter tests.
 - Tasks and purchase orders are kept in memory only; a server restart clears them.
+- Order selling prices are random: about 40% of order lines sell below the item's `unit_cost`, so margins computed from this data are meaningless.
+- Spending categories (Raw Materials, Components, ...) are cost types, not the product categories, so the category filter does not apply to Finance.

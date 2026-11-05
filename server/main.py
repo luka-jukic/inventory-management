@@ -1,13 +1,21 @@
 import os
+import re
 from datetime import date, datetime
 from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Literal, Optional
+import threading
+from typing import List, Literal, Optional, get_args
 from pydantic import BaseModel, Field
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
+
+# Fixed vocabularies shared by data, filters and response models
+Warehouse = Literal["San Francisco", "London", "Tokyo"]
+Category = Literal["Circuit Boards", "Sensors", "Actuators", "Controllers", "Power Supplies"]
+OrderStatus = Literal["Delivered", "Shipped", "Processing", "Backordered"]
+WAREHOUSES, CATEGORIES, ORDER_STATUSES = get_args(Warehouse), get_args(Category), get_args(OrderStatus)
 
 # Quarter mapping for date filtering
 QUARTER_MAP = {
@@ -16,38 +24,83 @@ QUARTER_MAP = {
     'Q3-2025': ['2025-07', '2025-08', '2025-09'],
     'Q4-2025': ['2025-10', '2025-11', '2025-12']
 }
+MONTH_PATTERN = r"^(2025-(0[1-9]|1[0-2])|Q[1-4]-2025)$"
+MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+REVENUE_GOAL_PER_MONTH = 800_000
 
-def filter_by_month(items: list, month: Optional[str]) -> list:
-    """Filter items by month/quarter based on order_date field"""
-    if not month or month == 'all':
+
+class Filters(BaseModel):
+    """Validated global filters; None means 'all'. Values are canonical (data spelling)."""
+    warehouse: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[str] = None
+    month: Optional[str] = None
+
+
+def canonical(value: Optional[str], allowed: tuple, name: str) -> Optional[str]:
+    """Map a case-insensitive filter value to its canonical spelling; 422 if unknown."""
+    if value is None or value.lower() == 'all':
+        return None
+    match = next((a for a in allowed if a.lower() == value.lower()), None)
+    if match is None:
+        raise HTTPException(status_code=422, detail=f"Invalid {name} '{value}'. Allowed: all, {', '.join(allowed)}")
+    return match
+
+
+def canonical_month(month: Optional[str] = None) -> Optional[str]:
+    """Validate a month (YYYY-MM) or quarter (Q1-2025) filter, any case; None = all."""
+    if month is None or month.lower() == 'all':
+        return None
+    if not re.fullmatch(MONTH_PATTERN, month.upper()):
+        raise HTTPException(status_code=422, detail=f"Invalid month '{month}'. Use YYYY-MM (2025) or Q1-2025 to Q4-2025")
+    return month.upper()
+
+
+def get_filters(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = Depends(canonical_month),
+) -> Filters:
+    return Filters(
+        warehouse=canonical(warehouse, WAREHOUSES, "warehouse"),
+        category=canonical(category, CATEGORIES, "category"),
+        status=canonical(status, ORDER_STATUSES, "status"),
+        month=month,
+    )
+
+
+def months_of(month: Optional[str]) -> Optional[set]:
+    """YYYY-MM months covered by a validated month filter; None = all."""
+    if not month:
+        return None
+    return set(QUARTER_MAP[month]) if month.startswith('Q') else {month}
+
+
+def filter_by_month(items: list, month: Optional[str], date_field: str = 'order_date') -> list:
+    """Filter items by month or quarter on a date field"""
+    months = months_of(month)
+    if months is None:
         return items
+    return [item for item in items if item.get(date_field, '')[:7] in months]
 
-    if month.startswith('Q'):
-        # Handle quarters
-        if month in QUARTER_MAP:
-            months = set(QUARTER_MAP[month])
-            return [item for item in items if item.get('order_date', '')[:7] in months]
-    else:
-        # Direct month match
-        return [item for item in items if month in item.get('order_date', '')]
 
-    return items
+def apply_filters(items: list, f: Filters, with_status: bool = True) -> list:
+    """Apply validated warehouse/category(/status) filters (values are already canonical)"""
+    return [
+        item for item in items
+        if (not f.warehouse or item.get('warehouse') == f.warehouse)
+        and (not f.category or item.get('category') == f.category)
+        and (not with_status or not f.status or item.get('status') == f.status)
+    ]
 
-def apply_filters(items: list, warehouse: Optional[str] = None, category: Optional[str] = None,
-                 status: Optional[str] = None) -> list:
-    """Apply common filters to a list of items"""
-    filtered = items
 
-    if warehouse and warehouse != 'all':
-        filtered = [item for item in filtered if item.get('warehouse') == warehouse]
+def filtered_orders(f: Filters) -> list:
+    return filter_by_month(apply_filters(orders, f), f.month)
 
-    if category and category != 'all':
-        filtered = [item for item in filtered if item.get('category', '').lower() == category.lower()]
 
-    if status and status != 'all':
-        filtered = [item for item in filtered if item.get('status', '').lower() == status.lower()]
-
-    return filtered
+def round_or_none(value: Optional[float], digits: int = 1) -> Optional[float]:
+    return None if value is None else round(value, digits)
 
 # CORS: only the Vite dev server by default. Override with a comma-separated CORS_ORIGINS.
 app.add_middleware(
@@ -71,34 +124,40 @@ class InventoryItem(BaseModel):
     id: str
     sku: str
     name: str
-    category: str
-    warehouse: str
-    quantity_on_hand: int
-    reorder_point: int
-    unit_cost: float
+    category: Category
+    warehouse: Warehouse
+    quantity_on_hand: int = Field(ge=0)
+    reorder_point: int = Field(ge=0)
+    unit_cost: float = Field(gt=0)
     location: str
-    last_updated: str
+    last_updated: datetime
+
+class OrderLine(BaseModel):
+    sku: str
+    name: str
+    quantity: int = Field(gt=0)
+    unit_price: float = Field(gt=0)
 
 class Order(BaseModel):
     id: str
     order_number: str
     customer: str
-    items: List[dict]
-    status: str
-    order_date: str
-    expected_delivery: str
-    total_value: float
-    actual_delivery: Optional[str] = None
-    warehouse: Optional[str] = None
-    category: Optional[str] = None
+    items: List[OrderLine] = Field(min_length=1)
+    status: OrderStatus
+    order_date: datetime
+    expected_delivery: datetime
+    total_value: float = Field(ge=0)
+    actual_delivery: Optional[datetime] = None
+    warehouse: Warehouse
+    category: Category
 
 class DemandForecast(BaseModel):
     id: str
     item_sku: str
     item_name: str
-    current_demand: int
-    forecasted_demand: int
-    trend: str
+    current_demand: int = Field(ge=0)
+    forecasted_demand: int = Field(ge=0)
+    trend: Literal["increasing", "stable", "decreasing"]
     period: str
 
 class BacklogItem(BaseModel):
@@ -106,11 +165,86 @@ class BacklogItem(BaseModel):
     order_id: str
     item_sku: str
     item_name: str
-    quantity_needed: int
-    quantity_available: int
-    days_delayed: int
-    priority: str
-    has_purchase_order: Optional[bool] = False
+    quantity_needed: int = Field(gt=0)
+    quantity_available: int = Field(ge=0)
+    days_delayed: int = Field(ge=0)
+    priority: Literal["high", "medium", "low"]
+    has_purchase_order: bool = False
+
+class CategoryValue(BaseModel):
+    category: Category
+    value: float
+    count: int
+
+class StatusCounts(BaseModel):
+    delivered: int
+    shipped: int
+    processing: int
+    backordered: int
+
+class DashboardSummary(BaseModel):
+    total_inventory_value: float
+    low_stock_items: int
+    pending_orders: int
+    total_backlog_items: int
+    orders_fulfilled: int
+    order_fill_rate: Optional[float]
+    avg_processing_days: Optional[float]
+    inventory_turnover: Optional[float]
+    total_orders: int
+    total_orders_value: float
+    avg_order_value: float
+    on_time_rate: Optional[float]
+    revenue_goal: float
+    status_counts: StatusCounts
+    inventory_value_by_category: List[CategoryValue]
+
+class SpendingSummary(BaseModel):
+    total_procurement_cost: float
+    total_operational_cost: float
+    total_labor_cost: float
+    total_overhead: float
+    procurement_change: float
+    operational_change: float
+    labor_change: float
+    overhead_change: float
+
+class MonthlySpending(BaseModel):
+    month: Literal['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    procurement: float = Field(ge=0)
+    operational: float = Field(ge=0)
+    labor: float = Field(ge=0)
+    overhead: float = Field(ge=0)
+
+class CategorySpending(BaseModel):
+    category: str
+    amount: float = Field(ge=0)
+    percentage: float
+    change: float
+
+class Transaction(BaseModel):
+    id: str
+    date: date
+    description: str
+    category: str
+    warehouse: Warehouse
+    amount: float = Field(gt=0)
+    vendor: str
+    type: Literal["Purchase", "Operational", "Overhead"]
+
+class QuarterlyReport(BaseModel):
+    quarter: str
+    total_orders: int
+    total_revenue: float
+    delivered_orders: int
+    avg_order_value: float
+    fulfillment_rate: float
+
+class MonthlyTrend(BaseModel):
+    month: str
+    order_count: int
+    revenue: float
+    delivered_count: int
 
 class PurchaseOrder(BaseModel):
     id: str
@@ -145,6 +279,8 @@ class CreateTaskRequest(BaseModel):
 
 # ponytail: in-memory store like the rest of the mock data; lost on restart
 tasks: List[dict] = []
+# ponytail: one global lock; per-item locks only if write volume ever matters
+purchase_order_lock = threading.Lock()
 
 # API endpoints
 @app.get("/")
@@ -152,12 +288,9 @@ def root():
     return {"message": "Factory Inventory Management System API", "version": "1.0.0"}
 
 @app.get("/api/inventory", response_model=List[InventoryItem])
-def get_inventory(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None
-):
-    """Get all inventory items with optional filtering"""
-    return apply_filters(inventory_items, warehouse, category)
+def get_inventory(f: Filters = Depends(get_filters)):
+    """Get all inventory items, filtered by warehouse and category (no time dimension)"""
+    return apply_filters(inventory_items, f, with_status=False)
 
 @app.get("/api/inventory/{item_id}", response_model=InventoryItem)
 def get_inventory_item(item_id: str):
@@ -169,17 +302,12 @@ def get_inventory_item(item_id: str):
 
 @app.get("/api/orders", response_model=List[Order])
 def get_orders(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    month: Optional[str] = None,
+    f: Filters = Depends(get_filters),
     limit: Optional[int] = Query(default=None, ge=1, le=1000),
     offset: int = Query(default=0, ge=0)
 ):
     """Get orders with optional filtering; limit/offset paginate (default: all)"""
-    filtered_orders = apply_filters(orders, warehouse, category, status)
-    filtered_orders = filter_by_month(filtered_orders, month)
-    return filtered_orders[offset:offset + limit if limit else None]
+    return filtered_orders(f)[offset:offset + limit if limit else None]
 
 @app.get("/api/orders/{order_id}", response_model=Order)
 def get_order(order_id: str):
@@ -194,182 +322,144 @@ def get_demand_forecasts():
     """Get demand forecasts"""
     return demand_forecasts
 
-def filter_backlog(warehouse: Optional[str] = None, category: Optional[str] = None,
-                   status: Optional[str] = None, month: Optional[str] = None) -> list:
+def filter_backlog(f: Filters) -> list:
     """Backlog items whose order matches the filters (joined on order_number)"""
-    order_numbers = {o["order_number"] for o in filter_by_month(apply_filters(orders, warehouse, category, status), month)}
+    order_numbers = {o["order_number"] for o in filtered_orders(f)}
     return [item for item in backlog_items if item["order_id"] in order_numbers]
 
 @app.get("/api/backlog", response_model=List[BacklogItem])
-def get_backlog(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    month: Optional[str] = None
-):
+def get_backlog(f: Filters = Depends(get_filters)):
     """Get backlog items with purchase order status, optionally filtered by their order"""
-    # Add has_purchase_order flag to each backlog item
-    result = []
-    for item in filter_backlog(warehouse, category, status, month):
-        item_dict = dict(item)
-        # Check if this backlog item has a purchase order
-        has_po = any(po["backlog_item_id"] == item["id"] for po in purchase_orders)
-        item_dict["has_purchase_order"] = has_po
-        result.append(item_dict)
-    return result
+    po_items = {po["backlog_item_id"] for po in purchase_orders}
+    return [{**item, "has_purchase_order": item["id"] in po_items} for item in filter_backlog(f)]
 
-@app.get("/api/dashboard/summary")
-def get_dashboard_summary(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    month: Optional[str] = None
-):
+@app.get("/api/dashboard/summary", response_model=DashboardSummary)
+def get_dashboard_summary(f: Filters = Depends(get_filters)):
     """Get summary statistics for dashboard with optional filtering"""
-    # Filter inventory
-    filtered_inventory = apply_filters(inventory_items, warehouse, category)
+    inventory = apply_filters(inventory_items, f, with_status=False)
+    order_list = filtered_orders(f)
 
-    # Filter orders
-    filtered_orders = apply_filters(orders, warehouse, category, status)
-    filtered_orders = filter_by_month(filtered_orders, month)
+    total_inventory_value = sum(item["quantity_on_hand"] * item["unit_cost"] for item in inventory)
+    delivered = [o for o in order_list if o["status"] == "Delivered"]
+    status_counts = {s.lower(): sum(1 for o in order_list if o["status"] == s) for s in ORDER_STATUSES}
+    total_orders_value = sum(o["total_value"] for o in order_list)
 
-    total_inventory_value = sum(item["quantity_on_hand"] * item["unit_cost"] for item in filtered_inventory)
-    low_stock_items = len([item for item in filtered_inventory if item["quantity_on_hand"] <= item["reorder_point"]])
-    pending_orders = len([order for order in filtered_orders if order["status"] in ["Processing", "Backordered"]])
-    total_backlog_items = len(filter_backlog(warehouse, category, status, month))
-
-    # KPIs from the filtered data
-    delivered = [o for o in filtered_orders if o["status"] == "Delivered"]
-    backordered = sum(1 for o in filtered_orders if o["status"] == "Backordered")
-    order_fill_rate = round(100 * (1 - backordered / len(filtered_orders)), 1) if filtered_orders else None
     processing_days = [
-        (datetime.fromisoformat(o["actual_delivery"]) - datetime.fromisoformat(o["order_date"])).days
-        for o in filtered_orders if o.get("actual_delivery")
+        round((datetime.fromisoformat(o["actual_delivery"]) - datetime.fromisoformat(o["order_date"])).total_seconds() / 86400)
+        for o in delivered
     ]
-    avg_processing_days = round(sum(processing_days) / len(processing_days), 1) if processing_days else None
+    on_time = sum(1 for o in delivered if o["actual_delivery"] <= o["expected_delivery"])
+
     # Turnover = cost of delivered goods / current inventory value
     unit_cost = {item["sku"]: item["unit_cost"] for item in inventory_items}
     cost_of_goods_sold = sum(i["quantity"] * unit_cost.get(i["sku"], 0) for o in delivered for i in o["items"])
-    inventory_turnover = round(cost_of_goods_sold / total_inventory_value, 1) if total_inventory_value else None
 
+    # Inventory value per category; with a period selected, only SKUs ordered in that period
+    ordered_skus = {i["sku"] for o in order_list for i in o["items"]} if f.month else None
+    by_category = {}
+    for item in inventory:
+        if ordered_skus is not None and item["sku"] not in ordered_skus:
+            continue
+        entry = by_category.setdefault(item["category"], {"category": item["category"], "value": 0.0, "count": 0})
+        entry["value"] += item["quantity_on_hand"] * item["unit_cost"]
+        entry["count"] += 1
+
+    months = months_of(f.month)
     return {
         "total_inventory_value": round(total_inventory_value, 2),
-        "low_stock_items": low_stock_items,
-        "pending_orders": pending_orders,
-        "total_backlog_items": total_backlog_items,
+        "low_stock_items": sum(1 for item in inventory if item["quantity_on_hand"] <= item["reorder_point"]),
+        "pending_orders": status_counts["processing"] + status_counts["backordered"],
+        "total_backlog_items": len(filter_backlog(f)),
         "orders_fulfilled": len(delivered),
-        "order_fill_rate": order_fill_rate,
-        "avg_processing_days": avg_processing_days,
-        "inventory_turnover": inventory_turnover,
-        "total_orders_value": sum(order["total_value"] for order in filtered_orders)
+        "order_fill_rate": round_or_none(100 * (1 - status_counts["backordered"] / len(order_list)) if order_list else None),
+        "avg_processing_days": round_or_none(sum(processing_days) / len(processing_days) if processing_days else None),
+        "inventory_turnover": round_or_none(cost_of_goods_sold / total_inventory_value if total_inventory_value else None),
+        "total_orders": len(order_list),
+        "total_orders_value": round(total_orders_value, 2),
+        "avg_order_value": round(total_orders_value / len(order_list), 2) if order_list else 0.0,
+        "on_time_rate": round_or_none(100 * on_time / len(delivered) if delivered else None),
+        "revenue_goal": REVENUE_GOAL_PER_MONTH * (len(months) if months else 12),
+        "status_counts": status_counts,
+        "inventory_value_by_category": sorted(by_category.values(), key=lambda c: -c["value"]),
     }
 
-@app.get("/api/spending/summary")
-def get_spending_summary():
-    """Get spending summary statistics"""
-    return spending_summary
+def spending_months(month: Optional[str]) -> list:
+    """Monthly spending rows covered by the month filter"""
+    months = months_of(month)
+    if months is None:
+        return monthly_spending
+    names = {MONTH_NAMES[int(m[5:7]) - 1] for m in months}
+    return [row for row in monthly_spending if row["month"] in names]
 
-@app.get("/api/spending/monthly")
+@app.get("/api/spending/summary", response_model=SpendingSummary)
+def get_spending_summary(month: Optional[str] = Depends(canonical_month)):
+    """Spending totals derived from the monthly rows (optionally one month or quarter)"""
+    rows = spending_months(month)
+    return {
+        "total_procurement_cost": sum(r["procurement"] for r in rows),
+        "total_operational_cost": sum(r["operational"] for r in rows),
+        "total_labor_cost": sum(r["labor"] for r in rows),
+        "total_overhead": sum(r["overhead"] for r in rows),
+        **spending_summary,  # year-over-year change percentages
+    }
+
+@app.get("/api/spending/monthly", response_model=List[MonthlySpending])
 def get_monthly_spending():
     """Get monthly spending breakdown"""
     return monthly_spending
 
-@app.get("/api/spending/categories")
+@app.get("/api/spending/categories", response_model=List[CategorySpending])
 def get_category_spending():
-    """Get spending by category"""
-    return category_spending
+    """Procurement spend by category; percentage = share of procurement, derived from the amounts"""
+    total = sum(c["amount"] for c in category_spending)
+    return [{**c, "percentage": round(100 * c["amount"] / total, 1) if total else 0.0} for c in category_spending]
 
-@app.get("/api/spending/transactions")
-def get_recent_transactions():
-    """Get recent transactions"""
-    return recent_transactions
+@app.get("/api/spending/transactions", response_model=List[Transaction])
+def get_recent_transactions(month: Optional[str] = Depends(canonical_month)):
+    """Get recent transactions, optionally for one month or quarter"""
+    return filter_by_month(recent_transactions, month, date_field='date')
 
-@app.get("/api/reports/quarterly")
-def get_quarterly_reports(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    month: Optional[str] = None
-):
+@app.get("/api/reports/quarterly", response_model=List[QuarterlyReport])
+def get_quarterly_reports(f: Filters = Depends(get_filters)):
     """Get quarterly performance reports, honoring the global filters"""
     month_to_quarter = {m: q for q, ms in QUARTER_MAP.items() for m in ms}
     quarters = {}
-
-    for order in filter_by_month(apply_filters(orders, warehouse, category, status), month):
-        quarter = month_to_quarter.get(order.get('order_date', '')[:7])
-        if not quarter:
+    for order in filtered_orders(f):
+        quarter = month_to_quarter.get(order["order_date"][:7])
+        if quarter is None:  # outside the 2025 quarters
             continue
+        q = quarters.setdefault(quarter, {"quarter": quarter, "total_orders": 0, "total_revenue": 0.0, "delivered_orders": 0})
+        q["total_orders"] += 1
+        q["total_revenue"] += order["total_value"]
+        q["delivered_orders"] += order["status"] == "Delivered"
 
-        if quarter not in quarters:
-            quarters[quarter] = {
-                'quarter': quarter,
-                'total_orders': 0,
-                'total_revenue': 0,
-                'delivered_orders': 0,
-                'avg_order_value': 0
-            }
+    return [
+        {
+            **q,
+            "total_revenue": round(q["total_revenue"], 2),
+            "avg_order_value": round(q["total_revenue"] / q["total_orders"], 2),
+            "fulfillment_rate": round(100 * q["delivered_orders"] / q["total_orders"], 1),
+        }
+        for q in sorted(quarters.values(), key=lambda q: q["quarter"])
+    ]
 
-        quarters[quarter]['total_orders'] += 1
-        quarters[quarter]['total_revenue'] += order.get('total_value', 0)
-        if order.get('status') == 'Delivered':
-            quarters[quarter]['delivered_orders'] += 1
-
-    # Calculate averages and fulfillment rate
-    result = []
-    for q, data in quarters.items():
-        if data['total_orders'] > 0:
-            data['avg_order_value'] = round(data['total_revenue'] / data['total_orders'], 2)
-            data['fulfillment_rate'] = round((data['delivered_orders'] / data['total_orders']) * 100, 1)
-        result.append(data)
-
-    # Sort by quarter
-    result.sort(key=lambda x: x['quarter'])
-    return result
-
-@app.get("/api/reports/monthly-trends")
-def get_monthly_trends(
-    warehouse: Optional[str] = None,
-    category: Optional[str] = None,
-    status: Optional[str] = None,
-    month: Optional[str] = None
-):
+@app.get("/api/reports/monthly-trends", response_model=List[MonthlyTrend])
+def get_monthly_trends(f: Filters = Depends(get_filters)):
     """Get month-over-month trends, honoring the global filters"""
     months = {}
-
-    for order in filter_by_month(apply_filters(orders, warehouse, category, status), month):
-        order_date = order.get('order_date', '')
-        if not order_date:
-            continue
-
-        # Extract month (format: YYYY-MM-DD)
-        month = order_date[:7]  # Gets YYYY-MM
-
-        if month not in months:
-            months[month] = {
-                'month': month,
-                'order_count': 0,
-                'revenue': 0,
-                'delivered_count': 0
-            }
-
-        months[month]['order_count'] += 1
-        months[month]['revenue'] += order.get('total_value', 0)
-        if order.get('status') == 'Delivered':
-            months[month]['delivered_count'] += 1
-
-    # Convert to list and sort
-    result = list(months.values())
-    result.sort(key=lambda x: x['month'])
-    return result
+    for order in filtered_orders(f):
+        key = order["order_date"][:7]
+        m = months.setdefault(key, {"month": key, "order_count": 0, "revenue": 0.0, "delivered_count": 0})
+        m["order_count"] += 1
+        m["revenue"] += order["total_value"]
+        m["delivered_count"] += order["status"] == "Delivered"
+    return [{**m, "revenue": round(m["revenue"], 2)} for m in sorted(months.values(), key=lambda m: m["month"])]
 
 @app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201, dependencies=[Depends(require_token)])
 def create_purchase_order(request: CreatePurchaseOrderRequest):
     """Create a purchase order for a backlog item (one per item)"""
     if not any(item["id"] == request.backlog_item_id for item in backlog_items):
         raise HTTPException(status_code=404, detail="Backlog item not found")
-    if any(po["backlog_item_id"] == request.backlog_item_id for po in purchase_orders):
-        raise HTTPException(status_code=409, detail="Backlog item already has a purchase order")
-
     po = request.model_dump()
     po.update(
         id=f"PO-{uuid4().hex[:8].upper()}",
@@ -377,7 +467,11 @@ def create_purchase_order(request: CreatePurchaseOrderRequest):
         status="pending",
         created_date=date.today().isoformat(),
     )
-    purchase_orders.append(po)
+    # Sync endpoints run in a threadpool: check and append atomically
+    with purchase_order_lock:
+        if any(existing["backlog_item_id"] == request.backlog_item_id for existing in purchase_orders):
+            raise HTTPException(status_code=409, detail="Backlog item already has a purchase order")
+        purchase_orders.append(po)
     return po
 
 @app.get("/api/purchase-orders/{backlog_item_id}", response_model=PurchaseOrder)

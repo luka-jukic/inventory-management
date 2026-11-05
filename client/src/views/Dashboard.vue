@@ -49,9 +49,9 @@
               <span class="kpi-label">{{ t(selectedPeriod === 'all' ? 'dashboard.kpi.revenueYTD' : 'dashboard.kpi.revenueMTD') }}</span>
             </div>
             <div class="kpi-value">{{ formatCurrency(Math.round(summary.total_orders_value), selectedCurrency) }}</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: {{ formatCurrency(revenueGoal, selectedCurrency) }} ({{ summary.total_orders_value > revenueGoal ? '+' : '' }}{{ ((summary.total_orders_value / revenueGoal - 1) * 100).toFixed(1) }}%)</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: {{ formatCurrency(summary.revenue_goal, selectedCurrency) }} ({{ summary.total_orders_value > summary.revenue_goal ? '+' : '' }}{{ ((summary.total_orders_value / summary.revenue_goal - 1) * 100).toFixed(1) }}%)</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress" :style="{ width: Math.min((summary.total_orders_value / revenueGoal * 100), 100) + '%' }"></div>
+              <div class="kpi-progress" :style="{ width: Math.min((summary.total_orders_value / summary.revenue_goal * 100), 100) + '%' }"></div>
             </div>
           </div>
 
@@ -102,7 +102,7 @@
                     :stroke-dashoffset="`-${getCircleSegment(statusData.delivered) + getCircleSegment(statusData.shipped) + getCircleSegment(statusData.processing)}`"
                     transform="rotate(-90 100 100)"/>
                   <text x="100" y="90" text-anchor="middle" class="donut-center-label">{{ t('dashboard.orderHealth.total') }}</text>
-                  <text x="100" y="120" text-anchor="middle" class="donut-center-value">{{ orderHealthMetrics.totalOrders }}</text>
+                  <text x="100" y="120" text-anchor="middle" class="donut-center-value">{{ summary.total_orders }}</text>
                 </svg>
                 <div class="donut-legend-compact">
                   <div class="legend-item-compact"><span class="legend-dot" style="background: #10b981"></span>{{ t('status.delivered') }}</div>
@@ -116,21 +116,21 @@
               <div class="order-health-metrics">
                 <div class="health-metric">
                   <div class="health-metric-label">{{ t('dashboard.orderHealth.revenue') }}</div>
-                  <div class="health-metric-value">{{ formatCurrency(orderHealthMetrics.totalValue, selectedCurrency) }}</div>
+                  <div class="health-metric-value">{{ formatCurrency(summary.total_orders_value, selectedCurrency) }}</div>
                 </div>
                 <div class="health-metric">
                   <div class="health-metric-label">{{ t('dashboard.orderHealth.avgOrderValue') }}</div>
-                  <div class="health-metric-value">{{ formatCurrency(orderHealthMetrics.avgOrderValue, selectedCurrency) }}</div>
+                  <div class="health-metric-value">{{ formatCurrency(summary.avg_order_value, selectedCurrency) }}</div>
                 </div>
                 <div class="health-metric">
                   <div class="health-metric-label">{{ t('dashboard.orderHealth.onTimeRate') }}</div>
-                  <div class="health-metric-value" :class="{ 'metric-good': orderHealthMetrics.onTimeRate >= 90, 'metric-warning': orderHealthMetrics.onTimeRate < 90 && orderHealthMetrics.onTimeRate >= 75, 'metric-bad': orderHealthMetrics.onTimeRate < 75 }">
-                    {{ orderHealthMetrics.onTimeRate.toFixed(1) }}%
+                  <div class="health-metric-value" :class="{ 'metric-good': summary.on_time_rate >= 90, 'metric-warning': summary.on_time_rate < 90 && summary.on_time_rate >= 75, 'metric-bad': summary.on_time_rate < 75 }">
+                    {{ summary.on_time_rate == null ? '\u2014' : summary.on_time_rate.toFixed(1) + '%' }}
                   </div>
                 </div>
                 <div class="health-metric">
                   <div class="health-metric-label">{{ t('dashboard.orderHealth.avgFulfillmentDays') }}</div>
-                  <div class="health-metric-value">{{ orderHealthMetrics.avgFulfillmentDays.toFixed(1) }}</div>
+                  <div class="health-metric-value">{{ summary.avg_processing_days == null ? '\u2014' : summary.avg_processing_days.toFixed(1) }}</div>
                 </div>
               </div>
             </div>
@@ -148,7 +148,7 @@
                 <div class="h-bar-label">{{ translateCategory(cat.name) }}</div>
                 <div class="h-bar-container">
                   <div class="h-bar" :style="{ width: (cat.value / maxCategoryValue * 100) + '%', background: cat.color }">
-                    <span class="h-bar-value">{{ selectedCurrency === 'JPY' ? formatCurrency(cat.value, selectedCurrency) : `$${(cat.value / 1000).toFixed(1)}K` }}</span>
+                    <span class="h-bar-value">{{ formatCategoryValue(cat.value) }}</span>
                   </div>
                 </div>
               </div>
@@ -310,7 +310,7 @@ import { ref, shallowRef, onMounted, onBeforeUnmount, computed, watch } from 'vu
 import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
-import { formatCurrency } from '../utils/currency'
+import { formatCurrency, formatCurrencyWithDecimals } from '../utils/currency'
 import ProductDetailModal from '../components/ProductDetailModal.vue'
 import BacklogDetailModal from '../components/BacklogDetailModal.vue'
 import PurchaseOrderModal from '../components/PurchaseOrderModal.vue'
@@ -349,150 +349,29 @@ export default {
     } = useFilters()
 
 
-    const revenueGoal = computed(() => {
-      // $800K per month, so if looking at all months (12 months), goal is 12 * 800K = 9.6M
-      const monthlyGoal = 800000
-      if (selectedPeriod.value === 'all') {
-        return monthlyGoal * 12 // $9,600,000 for the full year
-      }
-      return monthlyGoal // $800,000 for a single month
-    })
+    const statusData = computed(() => ({
+      delivered: 0, shipped: 0, processing: 0, backordered: 0,
+      ...summary.value.status_counts
+    }))
 
-    const revenueGoalDisplay = computed(() => {
-      if (revenueGoal.value >= 1000000) {
-        return `$${(revenueGoal.value / 1000000).toFixed(1)}M`
-      }
-      return `$${(revenueGoal.value / 1000).toFixed(0)}K`
-    })
+    // Single neutral slate color for all categories
+    const categoryData = computed(() =>
+      (summary.value.inventory_value_by_category || []).map(c => ({
+        name: c.category,
+        value: c.value,
+        color: '#64748b',
+        count: c.count
+      }))
+    )
 
-    const statusData = computed(() => {
-      const counts = { delivered: 0, shipped: 0, processing: 0, backordered: 0 }
-      allOrders.value.forEach(order => {
-        const status = order.status.toLowerCase()
-        if (counts[status] !== undefined) counts[status]++
-      })
-      return counts
-    })
-
-    const orderHealthMetrics = computed(() => {
-      const totalOrders = allOrders.value.length
-      const totalValue = allOrders.value.reduce((sum, order) => sum + (order.total_value || 0), 0)
-      const avgOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0
-
-      // Calculate on-time delivery rate (delivered orders that arrived on or before expected date)
-      const deliveredOrders = allOrders.value.filter(o => o.status.toLowerCase() === 'delivered')
-      const onTimeDeliveries = deliveredOrders.filter(o => {
-        if (o.actual_delivery && o.expected_delivery) {
-          return new Date(o.actual_delivery) <= new Date(o.expected_delivery)
-        }
-        return false
-      }).length
-      const onTimeRate = deliveredOrders.length > 0 ? (onTimeDeliveries / deliveredOrders.length) * 100 : 0
-
-      // Calculate average fulfillment speed (days from order to delivery for delivered orders)
-      let totalDays = 0
-      let countWithDates = 0
-      deliveredOrders.forEach(o => {
-        if (o.order_date && o.actual_delivery) {
-          const orderDate = new Date(o.order_date)
-          const deliveryDate = new Date(o.actual_delivery)
-          const days = Math.round((deliveryDate - orderDate) / (1000 * 60 * 60 * 24))
-          totalDays += days
-          countWithDates++
-        }
-      })
-      const avgFulfillmentDays = countWithDates > 0 ? totalDays / countWithDates : 0
-
-      return {
-        totalOrders,
-        totalValue,
-        avgOrderValue,
-        onTimeRate,
-        avgFulfillmentDays
-      }
-    })
-
-    const categoryData = computed(() => {
-      // Group inventory by category and calculate values
-      // Filter inventory items to only include those with orders in the selected period
-      const categoryMap = {}
-
-      // Use a single neutral slate/gray color for all categories
-      const singleColor = '#64748b' // Neutral slate gray color
-
-      // Get SKUs from orders in the filtered time period
-      const orderedSkus = new Set()
-      allOrders.value.forEach(order => {
-        if (order.items) {
-          order.items.forEach(item => {
-            orderedSkus.add(item.sku)
-          })
-        }
-      })
-
-      // Only include inventory items that have orders in the selected period
-      // If no period is selected (all), include all inventory items
-      const itemsToInclude = selectedPeriod.value === 'all'
-        ? inventoryItems.value
-        : inventoryItems.value.filter(item => orderedSkus.has(item.sku))
-
-      itemsToInclude.forEach(item => {
-        const cat = item.category.toLowerCase()
-        if (!categoryMap[cat]) {
-          categoryMap[cat] = {
-            name: item.category,
-            value: 0,
-            color: singleColor,
-            category: cat,
-            count: 0
-          }
-        }
-        categoryMap[cat].value += item.quantity_on_hand * item.unit_cost
-        categoryMap[cat].count += 1
-      })
-
-      return Object.values(categoryMap)
-    })
+    const formatCategoryValue = (value) =>
+      currentCurrency.value === 'JPY'
+        ? formatCurrency(value, 'JPY')
+        : formatCurrencyWithDecimals(value / 1000, 'USD', 1) + 'K'
 
     const maxCategoryValue = computed(() => {
       if (categoryData.value.length === 0) return 1
       return Math.max(...categoryData.value.map(c => c.value))
-    })
-
-    const orderTrendData = computed(() => {
-      // Group orders by month from the actual data
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-      // Initialize all months with 0 orders
-      const monthMap = {}
-      monthNames.forEach(month => {
-        monthMap[month] = { month, orders: 0 }
-      })
-
-      // Count orders for each month
-      if (Array.isArray(allOrders.value)) {
-        allOrders.value.forEach(order => {
-          if (order && order.order_date) {
-            const date = new Date(order.order_date)
-            const monthIndex = date.getMonth()
-            // Check if monthIndex is valid (0-11)
-            if (!isNaN(monthIndex) && monthIndex >= 0 && monthIndex <= 11) {
-              const monthName = monthNames[monthIndex]
-              monthMap[monthName].orders++
-            }
-          }
-        })
-      }
-
-      // Return all months in order
-      return monthNames.map(month => monthMap[month])
-    })
-
-    const maxOrderCount = computed(() => {
-      if (orderTrendData.value.length === 0) return 10
-      const max = Math.max(...orderTrendData.value.map(d => d.orders))
-      // Round up to nearest 10 for cleaner axis, minimum 10
-      return Math.max(10, Math.ceil(max / 10) * 10)
     })
 
     const topProducts = computed(() => {
@@ -624,10 +503,7 @@ export default {
     }))
 
     // Compute total orders once for efficiency
-    const totalOrders = computed(() => {
-      return statusData.value.delivered + statusData.value.shipped +
-             statusData.value.processing + statusData.value.backordered
-    })
+    const totalOrders = computed(() => summary.value.total_orders || 0)
 
     const getCircleSegment = (value) => {
       return totalOrders.value > 0 ? (value / totalOrders.value) * 440 : 0
@@ -734,11 +610,8 @@ export default {
       summary,
       kpis,
       statusData,
-      orderHealthMetrics,
       categoryData,
       maxCategoryValue,
-      orderTrendData,
-      maxOrderCount,
       topProducts,
       backlogItems,
       getCircleSegment,
@@ -747,8 +620,7 @@ export default {
       translateStockLevel,
       translatePriority,
       formatDate,
-      revenueGoal,
-      revenueGoalDisplay,
+      formatCategoryValue,
       showProductModal,
       selectedProduct,
       showProductDetail,

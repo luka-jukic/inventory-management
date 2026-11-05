@@ -47,17 +47,17 @@
         <div class="chart-container">
           <div class="bar-chart">
             <div class="y-axis">
-              <span>{{ currencySymbol }}{{ maxRevenueValue }}K</span>
-              <span>{{ currencySymbol }}{{ Math.round(maxRevenueValue * 0.75) }}K</span>
-              <span>{{ currencySymbol }}{{ Math.round(maxRevenueValue * 0.5) }}K</span>
-              <span>{{ currencySymbol }}{{ Math.round(maxRevenueValue * 0.25) }}K</span>
-              <span>{{ currencySymbol }}0</span>
+              <span>{{ axis(maxRevenueValue) }}</span>
+              <span>{{ axis(Math.round(maxRevenueValue * 0.75)) }}</span>
+              <span>{{ axis(Math.round(maxRevenueValue * 0.5)) }}</span>
+              <span>{{ axis(Math.round(maxRevenueValue * 0.25)) }}</span>
+              <span>{{ money(0) }}</span>
             </div>
             <div class="chart-area">
               <div v-for="month in monthlyRevenue" :key="month.month" class="bar-group-revenue">
                 <div class="revenue-bars">
-                  <div class="revenue-bar" :style="{ height: getRevenueBarHeight(month.revenue) + '%' }" :title="`${t('finance.revenueVsCosts.revenue')}: ${currencySymbol}${month.revenue.toLocaleString()}`"></div>
-                  <div class="cost-bar" :style="{ height: getRevenueBarHeight(month.costs) + '%' }" :title="`${t('finance.revenueVsCosts.costs')}: ${currencySymbol}${month.costs.toLocaleString()}`"></div>
+                  <div class="revenue-bar" :style="{ height: getRevenueBarHeight(month.revenue) + '%' }" :title="`${t('finance.revenueVsCosts.revenue')}: ${money(month.revenue)}`"></div>
+                  <div class="cost-bar" :style="{ height: getRevenueBarHeight(month.costs) + '%' }" :title="`${t('finance.revenueVsCosts.costs')}: ${money(month.costs)}`"></div>
                 </div>
                 <span class="bar-label">{{ translateMonth(month.month) }}</span>
               </div>
@@ -80,12 +80,12 @@
         <div class="chart-container">
           <div class="bar-chart">
             <div class="y-axis">
-              <span>{{ currencySymbol }}25K</span>
-              <span>{{ currencySymbol }}20K</span>
-              <span>{{ currencySymbol }}15K</span>
-              <span>{{ currencySymbol }}10K</span>
-              <span>{{ currencySymbol }}5K</span>
-              <span>{{ currencySymbol }}0</span>
+              <span>{{ axis(25) }}</span>
+              <span>{{ axis(20) }}</span>
+              <span>{{ axis(15) }}</span>
+              <span>{{ axis(10) }}</span>
+              <span>{{ axis(5) }}</span>
+              <span>{{ money(0) }}</span>
             </div>
             <div class="chart-area">
               <div v-for="month in monthlySpending" :key="month.month" class="bar-group">
@@ -98,10 +98,10 @@
                   @keydown.enter="showCostDetail(month)"
                   @keydown.space.prevent="showCostDetail(month)"
                 >
-                  <div class="bar-segment procurement" :style="{ height: getBarHeight(month.procurement) + '%' }" :title="`${t('finance.monthlyCostFlow.procurement')}: ${currencySymbol}${month.procurement.toLocaleString()}`"></div>
-                  <div class="bar-segment operational" :style="{ height: getBarHeight(month.operational) + '%' }" :title="`${t('finance.monthlyCostFlow.operational')}: ${currencySymbol}${month.operational.toLocaleString()}`"></div>
-                  <div class="bar-segment labor" :style="{ height: getBarHeight(month.labor) + '%' }" :title="`${t('finance.monthlyCostFlow.labor')}: ${currencySymbol}${month.labor.toLocaleString()}`"></div>
-                  <div class="bar-segment overhead" :style="{ height: getBarHeight(month.overhead) + '%' }" :title="`${t('finance.monthlyCostFlow.overhead')}: ${currencySymbol}${month.overhead.toLocaleString()}`"></div>
+                  <div class="bar-segment procurement" :style="{ height: getBarHeight(month.procurement) + '%' }" :title="`${t('finance.monthlyCostFlow.procurement')}: ${money(month.procurement)}`"></div>
+                  <div class="bar-segment operational" :style="{ height: getBarHeight(month.operational) + '%' }" :title="`${t('finance.monthlyCostFlow.operational')}: ${money(month.operational)}`"></div>
+                  <div class="bar-segment labor" :style="{ height: getBarHeight(month.labor) + '%' }" :title="`${t('finance.monthlyCostFlow.labor')}: ${money(month.labor)}`"></div>
+                  <div class="bar-segment overhead" :style="{ height: getBarHeight(month.overhead) + '%' }" :title="`${t('finance.monthlyCostFlow.overhead')}: ${money(month.overhead)}`"></div>
                 </div>
                 <span class="bar-label">{{ translateMonth(month.month) }}</span>
               </div>
@@ -120,7 +120,7 @@
             <div v-for="category in categorySpending" :key="category.category" class="category-item">
               <div class="category-info">
                 <div class="category-name">{{ translateCategory(category.category) }}</div>
-                <div class="category-amount">{{ currencySymbol }}{{ category.amount.toLocaleString() }}</div>
+                <div class="category-amount">{{ money(category.amount) }}</div>
               </div>
               <div class="category-bar-container">
                 <div class="category-bar" :style="{ width: category.percentage + '%' }"></div>
@@ -165,7 +165,7 @@
                   <td class="transaction-description">{{ transaction.description }}</td>
                   <td class="transaction-vendor">{{ transaction.vendor }}</td>
                   <td class="transaction-date">{{ formatDateShort(transaction.date) }}</td>
-                  <td class="transaction-amount text-right">{{ currencySymbol }}{{ transaction.amount.toLocaleString() }}</td>
+                  <td class="transaction-amount text-right">{{ money(transaction.amount) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -195,7 +195,7 @@
           <dt>{{ t('finance.transactions.date') }}</dt>
           <dd>{{ formatDateShort(selectedTransaction.date) }}</dd>
           <dt>{{ t('finance.transactions.amount') }}</dt>
-          <dd>{{ currencySymbol }}{{ selectedTransaction.amount.toLocaleString() }}</dd>
+          <dd>{{ money(selectedTransaction.amount) }}</dd>
         </dl>
         <button type="button" class="tx-close" @click="closeTransaction">{{ t('common.close') }}</button>
       </div>
@@ -210,7 +210,7 @@
 </template>
 
 <script>
-import { ref, shallowRef, nextTick, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
@@ -228,9 +228,10 @@ export default {
     const error = ref(null)
     const allMonthlySpending = ref([])
     const allCategorySpending = ref([])
-    const allTransactions = ref([])
+    const recentTransactions = ref([])
     const summaryData = ref({})
-    const allOrders = shallowRef([]) // replaced, never mutated
+    const dashSummary = ref({})
+    const trends = ref([])
 
     // Modal state
     const showCostModal = ref(false)
@@ -244,95 +245,21 @@ export default {
       return allMonthlySpending.value
     })
 
-    // Filtered monthly spending for summary calculations only
-    const filteredMonthlySpending = computed(() => {
-      if (selectedPeriod.value === 'all') {
-        return allMonthlySpending.value
-      }
+    const categorySpending = computed(() => allCategorySpending.value)
 
-      // Extract month name from YYYY-MM format
-      const monthMap = {
-        '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
-        '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
-        '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-      }
-      const selectedMonth = monthMap[selectedPeriod.value.split('-')[1]]
-      return allMonthlySpending.value.filter(m => m.month === selectedMonth)
-    })
-
-    const categorySpending = computed(() => {
-      return allCategorySpending.value
-    })
-
-    const recentTransactions = computed(() => {
-      if (selectedPeriod.value === 'all') {
-        return allTransactions.value
-      }
-      // Filter transactions by selected month
-      return allTransactions.value.filter(t => {
-        const transactionMonth = new Date(t.date).toISOString().slice(0, 7)
-        return transactionMonth === selectedPeriod.value
-      })
-    })
-
-    const summary = computed(() => {
-      // Recalculate summary based on filteredMonthlySpending (not the chart data)
-      if (filteredMonthlySpending.value.length === 0) {
-        return summaryData.value
-      }
-
-      const totals = filteredMonthlySpending.value.reduce((acc, month) => ({
-        procurement: acc.procurement + month.procurement,
-        operational: acc.operational + month.operational,
-        labor: acc.labor + month.labor,
-        overhead: acc.overhead + month.overhead
-      }), { procurement: 0, operational: 0, labor: 0, overhead: 0 })
-
-      return {
-        total_procurement_cost: totals.procurement,
-        total_operational_cost: totals.operational,
-        total_labor_cost: totals.labor,
-        total_overhead: totals.overhead,
-        procurement_change: summaryData.value.procurement_change || 0,
-        operational_change: summaryData.value.operational_change || 0,
-        labor_change: summaryData.value.labor_change || 0,
-        overhead_change: summaryData.value.overhead_change || 0
-      }
-    })
-
-    // Filtered orders based on selected period
-    const filteredOrders = computed(() => {
-      if (selectedPeriod.value === 'all') {
-        return allOrders.value
-      }
-
-      // Filter orders by selected month
-      return allOrders.value.filter(order => {
-        const orderMonth = new Date(order.order_date).toISOString().slice(0, 7)
-        return orderMonth === selectedPeriod.value
-      })
-    })
-
-    // Revenue metrics from filtered orders
-    const revenueMetrics = computed(() => {
-      const totalRevenue = filteredOrders.value.reduce((sum, order) => sum + (order.total_value || 0), 0)
-      const orderCount = filteredOrders.value.length
-      const avgOrderValue = orderCount > 0 ? totalRevenue / orderCount : 0
-
-      return {
-        totalRevenue,
-        orderCount,
-        avgOrderValue,
-        revenueGrowth: 15.3 // Placeholder - could calculate from historical data
-      }
-    })
+    // Revenue metrics come from the server (month-filtered, same scope as the costs)
+    const revenueMetrics = computed(() => ({
+      totalRevenue: dashSummary.value.total_orders_value || 0,
+      orderCount: dashSummary.value.total_orders || 0,
+      avgOrderValue: dashSummary.value.avg_order_value || 0
+    }))
 
     // Total costs from summary
     const totalCosts = computed(() => {
-      return summary.value.total_procurement_cost +
-             summary.value.total_operational_cost +
-             summary.value.total_labor_cost +
-             summary.value.total_overhead
+      return summaryData.value.total_procurement_cost +
+             summaryData.value.total_operational_cost +
+             summaryData.value.total_labor_cost +
+             summaryData.value.total_overhead
     })
 
     // Net profit
@@ -357,12 +284,11 @@ export default {
         costs: 0
       }))
 
-      // Calculate revenue from orders
-      allOrders.value.forEach(order => {
-        const orderDate = new Date(order.order_date)
-        const monthIndex = orderDate.getMonth()
+      // Revenue per month from server-side trends ('YYYY-MM')
+      trends.value.forEach(row => {
+        const monthIndex = parseInt(row.month.slice(5, 7), 10) - 1
         if (monthIndex >= 0 && monthIndex < 12) {
-          revenueByMonth[monthIndex].revenue += order.total_value || 0
+          revenueByMonth[monthIndex].revenue = row.revenue || 0
         }
       })
 
@@ -393,19 +319,25 @@ export default {
       try {
         loading.value = true
         error.value = null
-        const [summaryRes, monthlyRes, categoryRes, transactionsRes, ordersRes] = await Promise.all([
-          api.getSpendingSummary(opts),
+        const filters = getCurrentFilters()
+        // Costs and revenue are scoped by period only (costs have no warehouse/category)
+        // Month only, on purpose: costs have no warehouse/category, so filtering revenue by them would skew profit and margin
+        const periodFilters = { month: filters.month }
+        const [summaryRes, monthlyRes, categoryRes, transactionsRes, dashRes, trendsRes] = await Promise.all([
+          api.getSpendingSummary(periodFilters, opts),
           api.getMonthlySpending(opts),
           api.getCategorySpending(opts),
-          api.getTransactions(opts),
-          api.getOrders({}, opts)
+          api.getTransactions(periodFilters, opts),
+          api.getDashboardSummary(periodFilters, opts),
+          api.getMonthlyTrends({}, opts)
         ])
 
         summaryData.value = summaryRes
         allMonthlySpending.value = monthlyRes
         allCategorySpending.value = categoryRes
-        allTransactions.value = transactionsRes
-        allOrders.value = ordersRes
+        recentTransactions.value = transactionsRes
+        dashSummary.value = dashRes
+        trends.value = trendsRes
       } catch (err) {
         if (isCanceled(err)) return
         error.value = t('common.loadFailed', { message: err.message })
@@ -420,9 +352,10 @@ export default {
       return formatCurrencyUtil(value, currentCurrency.value)
     }
 
-    const currencySymbol = computed(() => {
-      return currentCurrency.value === 'JPY' ? '¥' : '$'
-    })
+    const money = (value) => formatCurrency(value)
+
+    // Axis label for a value in thousands of USD, e.g. $25K / ¥3,750K
+    const axis = (thousands) => formatCurrency(thousands) + 'K'
 
     const getBarHeight = (value) => {
       const maxValue = 25000
@@ -434,12 +367,10 @@ export default {
       return (value / maxValue) * 100
     }
 
+    // Date-only string (YYYY-MM-DD): read the parts directly, no timezone shift
     const formatDateShort = (dateString) => {
-      const date = new Date(dateString)
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const day = date.getDate().toString().padStart(2, '0')
-      const year = date.getFullYear().toString().slice(-2)
-      return `${month}/${day}/${year}`
+      const [year, month, day] = dateString.split('-')
+      return `${month}/${day}/${year.slice(-2)}`
     }
 
     const translateMonth = (month) => {
@@ -504,13 +435,13 @@ export default {
       showCostModal.value = true
     }
 
+    watch(selectedPeriod, loadData)
     onMounted(loadData)
 
     return {
       t,
       loading,
       error,
-      summary,
       monthlySpending,
       categorySpending,
       recentTransactions,
@@ -521,7 +452,8 @@ export default {
       monthlyRevenue,
       maxRevenueValue,
       formatCurrency,
-      currencySymbol,
+      money,
+      axis,
       getBarHeight,
       getRevenueBarHeight,
       formatDateShort,

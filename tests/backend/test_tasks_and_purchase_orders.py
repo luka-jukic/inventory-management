@@ -1,20 +1,8 @@
 """
 Tests for the tasks and purchase order API endpoints.
+State is reset per test by the autouse fixture in conftest.py.
 """
 import pytest
-
-import main
-
-
-@pytest.fixture(autouse=True)
-def reset_state():
-    """Both stores are in-memory module lists; restore them around each test."""
-    saved_pos, saved_tasks = list(main.purchase_orders), list(main.tasks)
-    main.purchase_orders.clear()
-    main.tasks.clear()
-    yield
-    main.purchase_orders[:] = saved_pos
-    main.tasks[:] = saved_tasks
 
 
 def po_payload(**overrides):

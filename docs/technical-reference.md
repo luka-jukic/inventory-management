@@ -160,13 +160,13 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 | `/api/orders/{order_id}` | | `Order`, 404 if unknown |
 | `/api/demand` | | `DemandForecast[]` |
 | `/api/backlog` | `warehouse`, `category`, `status`, `month` (matched on the linked order) | `BacklogItem[]` |
-| `/api/dashboard/summary` | `warehouse`, `category`, `status`, `month` | Summary object, incl. KPIs `orders_fulfilled`, `order_fill_rate`, `avg_processing_days`, `inventory_turnover` |
-| `/api/spending/summary` | | Spending totals |
-| `/api/spending/monthly` | | 12 monthly cost records |
-| `/api/spending/categories` | | Cost per category |
-| `/api/spending/transactions` | | Transactions |
-| `/api/reports/quarterly` | | Per-quarter metrics |
-| `/api/reports/monthly-trends` | | Per-month metrics |
+| `/api/dashboard/summary` | `warehouse`, `category`, `status`, `month` | `DashboardSummary`: inventory value, low stock, pending orders, backlog count, KPIs (`orders_fulfilled`, `order_fill_rate`, `avg_processing_days`, `inventory_turnover`, `on_time_rate`), order totals (`total_orders`, `total_orders_value`, `avg_order_value`), `revenue_goal` (800K per month in the period), `status_counts`, `inventory_value_by_category` |
+| `/api/spending/summary` | `month` | `SpendingSummary`: totals summed from the monthly rows of the period, plus year-over-year change percentages |
+| `/api/spending/monthly` | | `MonthlySpending[]`, 12 monthly cost records |
+| `/api/spending/categories` | | `CategorySpending[]`; `percentage` is computed from the amounts and sums to 100 |
+| `/api/spending/transactions` | `month` | `Transaction[]` |
+| `/api/reports/quarterly` | `warehouse`, `category`, `status`, `month` | `QuarterlyReport[]` |
+| `/api/reports/monthly-trends` | `warehouse`, `category`, `status`, `month` | `MonthlyTrend[]` (months with orders only) |
 
 **Write endpoints.** Stored in memory only; a server restart clears them.
 
@@ -182,7 +182,8 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 **Filter rules.**
 - `all` or a missing parameter means no filter.
 - `month` accepts `YYYY-MM` (e.g. `2025-03`) or a quarter `Q1-2025` to `Q4-2025`.
-- `category` and `status` match case-insensitively; `warehouse` must match exactly (`San Francisco`, `London`, `Tokyo`).
+- All filters match case-insensitively. Allowed values: warehouse `San Francisco`, `London`, `Tokyo`; category `Circuit Boards`, `Sensors`, `Actuators`, `Controllers`, `Power Supplies`; status `Delivered`, `Shipped`, `Processing`, `Backordered`.
+- An unknown value returns 422 with the allowed values in `detail`, instead of an empty result.
 
 **Example.**
 
@@ -192,7 +193,9 @@ curl "http://localhost:8001/api/orders?warehouse=Tokyo&status=shipped"
 
 ## 6. Data model
 
-Files in `server/data/`, loaded by `server/mock_data.py`. `server/generate_data.py` can regenerate them.
+Files in `server/data/`, loaded by `server/mock_data.py`. The data is a snapshot as of 2025-12-31. `server/generate_data.py` can regenerate `orders.json`. `tests/backend/test_data_integrity.py` checks that the files stay consistent after hand edits.
+
+Warehouse, category and order status are fixed lists (`Literal` types in `server/main.py`), shared by the data models and the filters.
 
 | File | Records | Model |
 |---|---|---|
@@ -200,13 +203,13 @@ Files in `server/data/`, loaded by `server/mock_data.py`. `server/generate_data.
 | `orders.json` | 250 | `Order` |
 | `demand_forecasts.json` | 9 | `DemandForecast` |
 | `backlog_items.json` | 4 | `BacklogItem` |
-| `transactions.json` | 56 | transaction dict |
-| `spending.json` | summary, 12 months, 4 categories | dicts |
+| `transactions.json` | 56 | `Transaction` |
+| `spending.json` | change percentages, 12 months, 4 categories | `MonthlySpending`, `CategorySpending` (totals and percentages are computed, not stored) |
 | `purchase_orders.json` | 0 (new POs are added in memory) | `PurchaseOrder` |
 
 **InventoryItem:** `id`, `sku`, `name`, `category`, `warehouse`, `quantity_on_hand`, `reorder_point`, `unit_cost`, `location`, `last_updated`.
 
-**Order:** `id`, `order_number`, `customer`, `items` (list of dicts), `status`, `order_date`, `expected_delivery`, `total_value`, optional `actual_delivery`, `warehouse`, `category`.
+**Order:** `id`, `order_number`, `customer`, `items` (`OrderLine[]`: `sku`, `name`, `quantity`, `unit_price`), `status`, `order_date`, `expected_delivery`, `total_value`, `actual_delivery` (set exactly when `status` is `Delivered`), `warehouse`, `category`.
 
 **DemandForecast:** `id`, `item_sku`, `item_name`, `current_demand`, `forecasted_demand`, `trend`, `period`.
 
@@ -242,6 +245,8 @@ The test dependencies live in `server/pyproject.toml`, so run pytest from `serve
 | `tests/backend/test_dashboard.py` | Dashboard summary and filters |
 | `tests/backend/test_misc_endpoints.py` | Demand, backlog, spending, root |
 | `tests/backend/test_tasks_and_purchase_orders.py` | Tasks and purchase orders: create, read, toggle, delete, 404/409/422 |
+| `tests/backend/test_data_integrity.py` | Every JSON row validates against its model; unique IDs; SKUs, order numbers and forecasts resolve; totals equal line sums; delivery dates match status and the 2025-12-31 snapshot |
+| `tests/backend/test_api_contract.py` | 422 on unknown filter values, case-insensitive filters, summary/spending/report numbers agree with each other |
 
 Frontend tests run with Vitest in jsdom (config in `client/vite.config.js`):
 

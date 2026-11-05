@@ -1,7 +1,7 @@
 """
 Mock data for the Factory Inventory Management System
 This module loads sample data from JSON files for inventory items, orders, demand forecasts, and backlog items.
-All data is from September 2025 and includes warehouse, category, and date fields for filtering.
+Snapshot as of 2025-12-31: orders cover all of 2025. tests/backend/test_data_integrity.py keeps the files consistent.
 """
 
 import json

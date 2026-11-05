@@ -194,7 +194,9 @@ class TestDashboardKpisAndBacklogFilters:
         assert abs(data["order_fill_rate"] - 100 * (1 - backordered / len(orders))) < 0.06
 
     def test_kpis_empty_when_no_orders_match(self, client):
-        data = client.get("/api/dashboard/summary", params={"status": "nonexistent"}).json()
+        # Valid filters that match no order (no SF power-supply orders backordered in January)
+        params = {"warehouse": "San Francisco", "category": "power supplies", "status": "backordered", "month": "2025-01"}
+        data = client.get("/api/dashboard/summary", params=params).json()
         assert data["orders_fulfilled"] == 0
         assert data["order_fill_rate"] is None
         assert data["avg_processing_days"] is None

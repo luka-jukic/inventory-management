@@ -10,7 +10,7 @@
             <div class="cost-summary">
               <div class="summary-card total">
                 <div class="summary-label">{{ t('detailModal.totalCosts') }}</div>
-                <div class="summary-value">{{ currencySymbol }}{{ totalCosts.toLocaleString() }}</div>
+                <div class="summary-value">{{ money(totalCosts) }}</div>
               </div>
             </div>
 
@@ -25,7 +25,7 @@
                   </div>
                   <div class="cost-info">
                     <div class="cost-name">{{ t('detailModal.procurement') }}</div>
-                    <div class="cost-amount">{{ currencySymbol }}{{ costData.procurement.toLocaleString() }}</div>
+                    <div class="cost-amount">{{ money(costData.procurement) }}</div>
                   </div>
                 </div>
                 <div class="cost-percentage">{{ t('detailModal.ofTotal', { pct: getProcurementPercentage() }) }}</div>
@@ -41,7 +41,7 @@
                   </div>
                   <div class="cost-info">
                     <div class="cost-name">{{ t('detailModal.operational') }}</div>
-                    <div class="cost-amount">{{ currencySymbol }}{{ costData.operational.toLocaleString() }}</div>
+                    <div class="cost-amount">{{ money(costData.operational) }}</div>
                   </div>
                 </div>
                 <div class="cost-percentage">{{ t('detailModal.ofTotal', { pct: getOperationalPercentage() }) }}</div>
@@ -57,7 +57,7 @@
                   </div>
                   <div class="cost-info">
                     <div class="cost-name">{{ t('detailModal.labor') }}</div>
-                    <div class="cost-amount">{{ currencySymbol }}{{ costData.labor.toLocaleString() }}</div>
+                    <div class="cost-amount">{{ money(costData.labor) }}</div>
                   </div>
                 </div>
                 <div class="cost-percentage">{{ t('detailModal.ofTotal', { pct: getLaborPercentage() }) }}</div>
@@ -72,7 +72,7 @@
                   </div>
                   <div class="cost-info">
                     <div class="cost-name">{{ t('detailModal.overhead') }}</div>
-                    <div class="cost-amount">{{ currencySymbol }}{{ costData.overhead.toLocaleString() }}</div>
+                    <div class="cost-amount">{{ money(costData.overhead) }}</div>
                   </div>
                 </div>
                 <div class="cost-percentage">{{ t('detailModal.ofTotal', { pct: getOverheadPercentage() }) }}</div>
@@ -89,13 +89,12 @@
 <script setup>
 import BaseModal from './BaseModal.vue'
 import { computed } from 'vue'
+import { formatCurrencyWithDecimals } from '../utils/currency'
 import { useI18n } from '../composables/useI18n'
 
 const { t, currentCurrency } = useI18n()
 
-const currencySymbol = computed(() => {
-  return currentCurrency.value === 'JPY' ? '¥' : '$'
-})
+const money = (n, d = 0) => formatCurrencyWithDecimals(n, currentCurrency.value, d)
 
 const props = defineProps({
   isOpen: {

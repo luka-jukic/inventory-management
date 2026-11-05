@@ -40,6 +40,7 @@ customers = [
 ]
 
 warehouses = ["A", "B", "C"]
+DATA_AS_OF = datetime(2025, 12, 31, 23, 59)
 statuses = ["Delivered", "Shipped", "Processing", "Backordered"]
 
 # Generate orders for each month of 2025
@@ -109,9 +110,13 @@ for month in range(1, 13):  # Jan to Dec
             "total_value": round(total_value, 2)
         }
 
-        if status == "Delivered" and month <= 10:
+        if status == "Delivered":
             actual_delivery = order_datetime + timedelta(days=random.randint(6, delivery_days + 2))
-            order["actual_delivery"] = actual_delivery.strftime("%Y-%m-%dT%H:%M:%S")
+            if actual_delivery > DATA_AS_OF:
+                # Can't be delivered after the data snapshot
+                order["status"] = "Shipped"
+            else:
+                order["actual_delivery"] = actual_delivery.strftime("%Y-%m-%dT%H:%M:%S")
 
         orders.append(order)
         order_id += 1
