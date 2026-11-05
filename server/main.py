@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import threading
 from typing import List, Literal, Optional, get_args
 from pydantic import BaseModel, Field
-from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
+from mock_data import inventory_items, orders, demand_forecasts, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
 
@@ -27,6 +27,7 @@ QUARTER_MAP = {
 MONTH_PATTERN = r"^(2025-(0[1-9]|1[0-2])|Q[1-4]-2025)$"
 MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 REVENUE_GOAL_PER_MONTH = 800_000
+DATA_AS_OF = datetime(2025, 12, 31, 23, 59, 59)  # snapshot date of the mock data
 
 
 class Filters(BaseModel):
@@ -120,6 +121,22 @@ def require_token(x_api_token: Optional[str] = Header(default=None)):
 MAX_TASKS = 1000
 
 # Data models
+StockStatus = Literal["low_stock", "adequate", "in_stock"]
+
+
+def stock_status(item: dict) -> str:
+    """One definition of stock status for every view: at/below reorder point, up to 1.5x, above"""
+    if item["quantity_on_hand"] <= item["reorder_point"]:
+        return "low_stock"
+    if item["quantity_on_hand"] <= item["reorder_point"] * 1.5:
+        return "adequate"
+    return "in_stock"
+
+
+def with_stock_status(item: dict) -> dict:
+    return {**item, "stock_status": stock_status(item)}
+
+
 class InventoryItem(BaseModel):
     id: str
     sku: str
@@ -131,6 +148,7 @@ class InventoryItem(BaseModel):
     unit_cost: float = Field(gt=0)
     location: str
     last_updated: datetime
+    stock_status: StockStatus
 
 class OrderLine(BaseModel):
     sku: str
@@ -162,11 +180,12 @@ class DemandForecast(BaseModel):
 
 class BacklogItem(BaseModel):
     id: str
-    order_id: str
+    order_number: str
     item_sku: str
     item_name: str
     quantity_needed: int = Field(gt=0)
     quantity_available: int = Field(ge=0)
+    unit_cost: float = Field(gt=0)
     days_delayed: int = Field(ge=0)
     priority: Literal["high", "medium", "low"]
     has_purchase_order: bool = False
@@ -252,9 +271,9 @@ class PurchaseOrder(BaseModel):
     supplier_name: str
     quantity: int
     unit_cost: float
-    expected_delivery_date: str
-    status: str
-    created_date: str
+    expected_delivery_date: date
+    status: Literal["pending"]
+    created_date: date
     notes: Optional[str] = None
 
 class CreatePurchaseOrderRequest(BaseModel):
@@ -269,18 +288,19 @@ class Task(BaseModel):
     id: str
     title: str
     priority: Literal["high", "medium", "low"]
-    dueDate: str
+    due_date: date
     status: Literal["pending", "completed"]
 
 class CreateTaskRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     priority: Literal["high", "medium", "low"] = "medium"
-    dueDate: date
+    due_date: date
 
 # ponytail: in-memory store like the rest of the mock data; lost on restart
 tasks: List[dict] = []
 # ponytail: one global lock; per-item locks only if write volume ever matters
 purchase_order_lock = threading.Lock()
+task_lock = threading.Lock()
 
 # API endpoints
 @app.get("/")
@@ -290,7 +310,7 @@ def root():
 @app.get("/api/inventory", response_model=List[InventoryItem])
 def get_inventory(f: Filters = Depends(get_filters)):
     """Get all inventory items, filtered by warehouse and category (no time dimension)"""
-    return apply_filters(inventory_items, f, with_status=False)
+    return [with_stock_status(i) for i in apply_filters(inventory_items, f, with_status=False)]
 
 @app.get("/api/inventory/{item_id}", response_model=InventoryItem)
 def get_inventory_item(item_id: str):
@@ -298,7 +318,7 @@ def get_inventory_item(item_id: str):
     item = next((item for item in inventory_items if item["id"] == item_id), None)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return item
+    return with_stock_status(item)
 
 @app.get("/api/orders", response_model=List[Order])
 def get_orders(
@@ -322,16 +342,57 @@ def get_demand_forecasts():
     """Get demand forecasts"""
     return demand_forecasts
 
+def backlog_priority(days_delayed: int) -> str:
+    if days_delayed > 60:
+        return "high"
+    if days_delayed > 14:
+        return "medium"
+    return "low"
+
+
+def compute_backlog(order_list: list) -> list:
+    """Backlog = lines of Backordered orders that need more than the stock on hand.
+
+    Computed, not stored, so it always matches the orders and the inventory.
+    ponytail: each order is compared with the full stock on hand (no allocation
+    across orders), so two backlog rows for one SKU both show all stock as
+    available; allocate in order_date order if that ever matters.
+    """
+    stock = {item["sku"]: item for item in inventory_items}
+    po_items = {po["backlog_item_id"] for po in purchase_orders}
+    backlog = []
+    for order in order_list:
+        if order["status"] != "Backordered":
+            continue
+        days_delayed = max(0, (DATA_AS_OF - datetime.fromisoformat(order["expected_delivery"])).days)
+        for line in order["items"]:
+            available = stock[line["sku"]]["quantity_on_hand"]
+            if line["quantity"] <= available:
+                continue
+            item_id = f"BL-{order['order_number'][4:]}-{line['sku']}"
+            backlog.append({
+                "id": item_id,
+                "order_number": order["order_number"],
+                "item_sku": line["sku"],
+                "item_name": stock[line["sku"]]["name"],
+                "quantity_needed": line["quantity"],
+                "quantity_available": available,
+                "unit_cost": stock[line["sku"]]["unit_cost"],
+                "days_delayed": days_delayed,
+                "priority": backlog_priority(days_delayed),
+                "has_purchase_order": item_id in po_items,
+            })
+    return sorted(backlog, key=lambda b: (-b["days_delayed"], b["id"]))
+
+
 def filter_backlog(f: Filters) -> list:
-    """Backlog items whose order matches the filters (joined on order_number)"""
-    order_numbers = {o["order_number"] for o in filtered_orders(f)}
-    return [item for item in backlog_items if item["order_id"] in order_numbers]
+    """Backlog items whose order matches the filters"""
+    return compute_backlog(filtered_orders(f))
 
 @app.get("/api/backlog", response_model=List[BacklogItem])
 def get_backlog(f: Filters = Depends(get_filters)):
-    """Get backlog items with purchase order status, optionally filtered by their order"""
-    po_items = {po["backlog_item_id"] for po in purchase_orders}
-    return [{**item, "has_purchase_order": item["id"] in po_items} for item in filter_backlog(f)]
+    """Backlog items (longest delayed first) with purchase order status, filtered by their order"""
+    return filter_backlog(f)
 
 @app.get("/api/dashboard/summary", response_model=DashboardSummary)
 def get_dashboard_summary(f: Filters = Depends(get_filters)):
@@ -367,7 +428,7 @@ def get_dashboard_summary(f: Filters = Depends(get_filters)):
     months = months_of(f.month)
     return {
         "total_inventory_value": round(total_inventory_value, 2),
-        "low_stock_items": sum(1 for item in inventory if item["quantity_on_hand"] <= item["reorder_point"]),
+        "low_stock_items": sum(1 for item in inventory if stock_status(item) == "low_stock"),
         "pending_orders": status_counts["processing"] + status_counts["backordered"],
         "total_backlog_items": len(filter_backlog(f)),
         "orders_fulfilled": len(delivered),
@@ -382,6 +443,38 @@ def get_dashboard_summary(f: Filters = Depends(get_filters)):
         "status_counts": status_counts,
         "inventory_value_by_category": sorted(by_category.values(), key=lambda c: -c["value"]),
     }
+
+class TopProduct(BaseModel):
+    sku: str
+    name: str
+    category: Category
+    warehouse: Warehouse
+    units_ordered: int
+    revenue: float
+    quantity_on_hand: int
+    reorder_point: int
+    stock_status: StockStatus
+    first_order_date: datetime
+
+@app.get("/api/dashboard/top-products", response_model=List[TopProduct])
+def get_top_products(f: Filters = Depends(get_filters), limit: int = Query(default=12, ge=1, le=50)):
+    """Products ordered in the filtered orders: earliest first order first, then by revenue"""
+    stock = {item["sku"]: item for item in inventory_items}
+    products = {}
+    for order in filtered_orders(f):
+        for line in order["items"]:
+            item = stock[line["sku"]]
+            p = products.setdefault(line["sku"], {
+                "sku": item["sku"], "name": item["name"], "category": item["category"],
+                "warehouse": item["warehouse"], "units_ordered": 0, "revenue": 0.0,
+                "quantity_on_hand": item["quantity_on_hand"], "reorder_point": item["reorder_point"],
+                "stock_status": stock_status(item), "first_order_date": order["order_date"],
+            })
+            p["units_ordered"] += line["quantity"]
+            p["revenue"] += line["quantity"] * line["unit_price"]
+            p["first_order_date"] = min(p["first_order_date"], order["order_date"])
+    ranked = sorted(products.values(), key=lambda p: (p["first_order_date"], -p["revenue"]))
+    return [{**p, "revenue": round(p["revenue"], 2)} for p in ranked[:limit]]
 
 def spending_months(month: Optional[str]) -> list:
     """Monthly spending rows covered by the month filter"""
@@ -458,7 +551,7 @@ def get_monthly_trends(f: Filters = Depends(get_filters)):
 @app.post("/api/purchase-orders", response_model=PurchaseOrder, status_code=201, dependencies=[Depends(require_token)])
 def create_purchase_order(request: CreatePurchaseOrderRequest):
     """Create a purchase order for a backlog item (one per item)"""
-    if not any(item["id"] == request.backlog_item_id for item in backlog_items):
+    if not any(item["id"] == request.backlog_item_id for item in compute_backlog(orders)):
         raise HTTPException(status_code=404, detail="Backlog item not found")
     po = request.model_dump()
     po.update(
@@ -491,34 +584,38 @@ def find_task(task_id: str) -> dict:
 @app.get("/api/tasks", response_model=List[Task])
 def get_tasks():
     """Get all tasks, newest first"""
-    return tasks
+    with task_lock:
+        return [dict(t) for t in tasks]
 
 @app.post("/api/tasks", response_model=Task, status_code=201, dependencies=[Depends(require_token)])
 def create_task(request: CreateTaskRequest):
     """Create a task"""
-    if len(tasks) >= MAX_TASKS:
-        raise HTTPException(status_code=409, detail="Task limit reached")
     task = {
         "id": f"task-{uuid4().hex[:8]}",
         "title": request.title,
         "priority": request.priority,
-        "dueDate": request.dueDate.isoformat(),
+        "due_date": request.due_date.isoformat(),
         "status": "pending",
     }
-    tasks.insert(0, task)
+    with task_lock:
+        if len(tasks) >= MAX_TASKS:
+            raise HTTPException(status_code=409, detail="Task limit reached")
+        tasks.insert(0, task)
     return task
 
 @app.delete("/api/tasks/{task_id}", status_code=204, dependencies=[Depends(require_token)])
 def delete_task(task_id: str):
     """Delete a task"""
-    tasks.remove(find_task(task_id))
+    with task_lock:
+        tasks.remove(find_task(task_id))
 
 @app.patch("/api/tasks/{task_id}", response_model=Task, dependencies=[Depends(require_token)])
 def toggle_task(task_id: str):
     """Toggle a task between pending and completed"""
-    task = find_task(task_id)
-    task["status"] = "completed" if task["status"] == "pending" else "pending"
-    return task
+    with task_lock:
+        task = find_task(task_id)
+        task["status"] = "completed" if task["status"] == "pending" else "pending"
+        return dict(task)
 
 if __name__ == "__main__":
     import uvicorn

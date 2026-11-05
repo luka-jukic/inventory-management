@@ -52,7 +52,7 @@
             </thead>
             <tbody>
               <tr v-for="item in backlogItems" :key="item.id">
-                <td><strong>{{ item.order_id }}</strong></td>
+                <td><strong>{{ item.order_number }}</strong></td>
                 <td><strong>{{ item.item_sku }}</strong></td>
                 <td>{{ translateProductName(item.item_name) }}</td>
                 <td>{{ item.quantity_needed }}</td>

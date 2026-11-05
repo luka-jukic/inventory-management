@@ -113,16 +113,15 @@ const formatDate = (dateString) => {
 }
 
 const getStockLabel = (stockLevel) => {
-  if (stockLevel === 'In Stock') return t('status.inStock')
-  if (stockLevel === 'Low Stock') return t('status.lowStock')
-  if (stockLevel === 'Out of Stock') return t('detailModal.outOfStock')
+  if (stockLevel === 'in_stock') return t('status.inStock')
+  if (stockLevel === 'adequate') return t('status.adequate')
+  if (stockLevel === 'low_stock') return t('status.lowStock')
   return stockLevel
 }
 
 const getStockBadgeClass = (stockLevel) => {
-  if (stockLevel === 'In Stock') return 'success'
-  if (stockLevel === 'Low Stock') return 'warning'
-  if (stockLevel === 'Out of Stock') return 'danger'
+  if (stockLevel === 'in_stock') return 'success'
+  if (stockLevel === 'adequate' || stockLevel === 'low_stock') return 'warning'
   return 'info'
 }
 </script>

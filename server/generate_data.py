@@ -1,139 +1,156 @@
 """
-Script to generate sample data spread across all months of 2025
+Regenerate orders.json and demand_forecasts.json from inventory.json.
+
+Deterministic (fixed seed). The rules the data follows are the same ones
+tests/backend/test_data_integrity.py checks:
+- an order ships from the warehouse that stocks its items, and all lines
+  share one product category (the order's category)
+- prices are cost plus a markup; quantities are sized so the cost of goods
+  sold fits within procurement spend plus stock
+- status follows the dates relative to the 2025-12-31 snapshot; only orders
+  with a line larger than the stock on hand are Backordered
+- demand forecasts use the real average monthly units of Oct-Dec
+
+Run from server/:  uv run python generate_data.py
 """
 import json
 import random
-from datetime import datetime, timedelta
-
-# Product catalog
-products = [
-    {"sku": "WDG-001", "name": "Industrial Widget Type A", "category": "Widgets", "price": 24.99},
-    {"sku": "WDG-002", "name": "Industrial Widget Type B", "category": "Widgets", "price": 29.99},
-    {"sku": "WDG-003", "name": "Industrial Widget Type C", "category": "Widgets", "price": 34.50},
-    {"sku": "BRG-102", "name": "Steel Bearing Assembly", "category": "Components", "price": 89.50},
-    {"sku": "BRG-103", "name": "Ceramic Bearing Assembly", "category": "Components", "price": 125.00},
-    {"sku": "GSK-203", "name": "High-Temperature Gasket", "category": "Components", "price": 12.75},
-    {"sku": "GSK-204", "name": "Standard Gasket", "category": "Components", "price": 8.50},
-    {"sku": "GSK-205", "name": "Heavy Duty Gasket", "category": "Components", "price": 15.99},
-    {"sku": "MTR-304", "name": "Electric Motor 5HP", "category": "Equipment", "price": 445.00},
-    {"sku": "MTR-305", "name": "Electric Motor 10HP", "category": "Equipment", "price": 725.00},
-    {"sku": "MTR-306", "name": "Electric Motor 3HP", "category": "Equipment", "price": 325.00},
-    {"sku": "FLT-405", "name": "Oil Filter Cartridge", "category": "Consumables", "price": 8.25},
-    {"sku": "FLT-406", "name": "Air Filter Cartridge", "category": "Consumables", "price": 6.50},
-    {"sku": "FLT-407", "name": "Fuel Filter Cartridge", "category": "Consumables", "price": 7.75},
-    {"sku": "VLV-506", "name": "Pressure Relief Valve", "category": "Components", "price": 156.00},
-    {"sku": "VLV-507", "name": "Ball Valve", "category": "Components", "price": 95.00},
-    {"sku": "VLV-508", "name": "Gate Valve", "category": "Components", "price": 110.50},
-]
-
-customers = [
-    "Acme Manufacturing Corp", "TechBuild Industries", "Global Parts Ltd",
-    "Precision Tools Inc", "Industrial Solutions Inc", "MegaCorp Industries",
-    "BuildTech Co", "FastAssembly Ltd", "Quality Parts LLC", "Superior Manufacturing",
-    "PrecisionWorks Inc", "Elite Systems Corp", "Advanced Components Inc",
-    "ProManufacturing LLC", "TechSolutions Group", "Innovative Parts Co",
-    "Premier Industries", "Dynamic Systems Ltd", "Quantum Manufacturing",
-    "Apex Engineering", "Titan Products Inc", "Vanguard Systems",
-    "Omega Manufacturing", "Fusion Industries", "Stellar Components Ltd",
-    "Nexus Engineering", "Cascade Manufacturing", "Horizon Technologies",
-    "Summit Parts Corp", "Velocity Industries"
-]
-
-warehouses = ["A", "B", "C"]
-DATA_AS_OF = datetime(2025, 12, 31, 23, 59)
-statuses = ["Delivered", "Shipped", "Processing", "Backordered"]
-
-# Generate orders for each month of 2025
-orders = []
-order_id = 1
-
-for month in range(1, 13):  # Jan to Dec
-    # Generate 8-12 orders per month
-    num_orders = random.randint(8, 12)
-
-    for _ in range(num_orders):
-        # Random day in the month
-        day = random.randint(1, 28)  # Using 28 to avoid month-end issues
-        hour = random.randint(8, 17)
-        minute = random.randint(0, 59)
-
-        order_date = f"2025-{month:02d}-{day:02d}T{hour:02d}:{minute:02d}:00"
-
-        # Expected delivery 7-14 days later
-        order_datetime = datetime(2025, month, day, hour, minute)
-        delivery_days = random.randint(7, 14)
-        expected_delivery = order_datetime + timedelta(days=delivery_days)
-
-        # Determine status based on date (earlier orders more likely to be delivered)
-        if month <= 8:
-            status = random.choices(statuses, weights=[70, 20, 5, 5])[0]
-        elif month <= 10:
-            status = random.choices(statuses, weights=[40, 40, 15, 5])[0]
-        else:
-            status = random.choices(statuses, weights=[10, 30, 40, 20])[0]
-
-        # Select 1-3 products for the order
-        num_items = random.randint(1, 3)
-        order_products = random.sample(products, num_items)
-
-        items = []
-        total_value = 0
-        primary_category = None
-
-        for product in order_products:
-            quantity = random.randint(50, 1000)
-            item_value = quantity * product["price"]
-            total_value += item_value
-
-            if primary_category is None:
-                primary_category = product["category"]
-
-            items.append({
-                "sku": product["sku"],
-                "name": product["name"],
-                "quantity": quantity,
-                "unit_price": product["price"]
-            })
-
-        warehouse = random.choice(warehouses)
-
-        order = {
-            "id": str(order_id),
-            "order_number": f"ORD-2025-{order_id:04d}",
-            "customer": random.choice(customers),
-            "items": items,
-            "status": status,
-            "warehouse": warehouse,
-            "category": primary_category,
-            "order_date": order_date,
-            "expected_delivery": expected_delivery.strftime("%Y-%m-%dT%H:%M:%S"),
-            "total_value": round(total_value, 2)
-        }
-
-        if status == "Delivered":
-            actual_delivery = order_datetime + timedelta(days=random.randint(6, delivery_days + 2))
-            if actual_delivery > DATA_AS_OF:
-                # Can't be delivered after the data snapshot
-                order["status"] = "Shipped"
-            else:
-                order["actual_delivery"] = actual_delivery.strftime("%Y-%m-%dT%H:%M:%S")
-
-        orders.append(order)
-        order_id += 1
-
-# Save to file
-with open('data/orders.json', 'w') as f:
-    json.dump(orders, f, indent=2)
-
-print(f"Generated {len(orders)} orders across 12 months of 2025")
-
-# Count orders per month
 from collections import defaultdict
-orders_per_month = defaultdict(int)
-for order in orders:
-    month = order['order_date'][5:7]
-    orders_per_month[month] += 1
+from datetime import datetime, timedelta
+from pathlib import Path
 
-print("\nOrders per month:")
-for month in sorted(orders_per_month.keys()):
-    print(f"  {month}: {orders_per_month[month]} orders")
+DATA = Path(__file__).parent / "data"
+DATA_AS_OF = datetime(2025, 12, 31, 23, 59)
+SEED = 2025
+ORDERS_PER_MONTH = (18, 24)
+LINE_VALUE = (6_000, 30_000)      # USD revenue per order line
+MARKUP = (1.25, 1.6)              # selling price = unit_cost * markup
+
+CUSTOMERS = [
+    "Acme Manufacturing Corp", "TechBuild Industries", "Global Parts Ltd", "Precision Tools Inc",
+    "Industrial Solutions Inc", "MegaCorp Industries", "BuildTech Co", "FastAssembly Ltd",
+    "Quality Parts LLC", "Superior Manufacturing", "PrecisionWorks Inc", "Elite Systems Corp",
+    "Advanced Components Inc", "ProManufacturing LLC", "TechSolutions Group", "Innovative Parts Co",
+    "Premier Industries", "Dynamic Systems Ltd", "Quantum Manufacturing", "Apex Engineering",
+    "Titan Products Inc", "Vanguard Systems", "Omega Manufacturing", "Fusion Industries",
+    "Stellar Components Ltd", "Nexus Engineering", "Cascade Manufacturing", "Horizon Technologies",
+    "Summit Parts Corp", "Velocity Industries",
+]
+
+# Existing forecasts keep their SKU and trend; numbers are recomputed
+FORECAST_TRENDS = {
+    "PCB-001": "increasing", "PCB-002": "stable", "PCB-003": "increasing",
+    "PWM-404": "decreasing", "HMD-202": "increasing", "PRS-203": "stable",
+    "PSU-501": "stable", "TMP-201": "stable", "MCU-402": "stable",
+}
+TREND_FACTOR = {"increasing": (1.15, 1.35), "stable": (0.99, 1.01), "decreasing": (0.75, 0.9)}
+
+FMT = "%Y-%m-%dT%H:%M:%S"
+
+
+def backorder_probability(month: int) -> float:
+    """Most open backorders are recent; a few old ones stay open all year."""
+    return 0.015 + 0.009 * month
+
+
+def make_order(rng, order_id, month, pools):
+    order_dt = datetime(2025, month, rng.randint(1, 28), rng.randint(8, 17), rng.randint(0, 59))
+    if order_dt > DATA_AS_OF:
+        order_dt = DATA_AS_OF - timedelta(hours=1)
+    expected = order_dt + timedelta(days=rng.randint(7, 14))
+
+    warehouse, category = rng.choice(sorted(pools))
+    pool = pools[(warehouse, category)]
+    products = rng.sample(pool, k=min(len(pool), rng.randint(1, 3)))
+    backordered = rng.random() < backorder_probability(month)
+
+    items = []
+    for i, p in enumerate(products):
+        price = round(p["unit_cost"] * rng.uniform(*MARKUP), 2)
+        qty = max(1, round(rng.uniform(*LINE_VALUE) / price))
+        qty = min(qty, max(1, int(p["quantity_on_hand"] * 0.8)))  # normal orders fit the stock
+        if backordered and i == 0:
+            qty = p["quantity_on_hand"] + rng.randint(5, max(6, p["quantity_on_hand"] // 2))
+        items.append({"sku": p["sku"], "name": p["name"], "quantity": qty, "unit_price": price})
+
+    if backordered:
+        status, actual = "Backordered", None
+    elif order_dt > DATA_AS_OF - timedelta(days=8):
+        status, actual = "Processing", None
+    elif expected > DATA_AS_OF - timedelta(days=4):
+        status, actual = "Shipped", None
+    else:
+        status = "Delivered"
+        actual = min(max(expected + timedelta(days=rng.randint(-3, 1)), order_dt + timedelta(days=2)), DATA_AS_OF)
+
+    return {
+        "id": str(order_id),
+        "order_number": f"ORD-2025-{order_id:04d}",
+        "customer": rng.choice(CUSTOMERS),
+        "items": items,
+        "status": status,
+        "warehouse": warehouse,
+        "category": category,
+        "order_date": order_dt.strftime(FMT),
+        "expected_delivery": expected.strftime(FMT),
+        "total_value": round(sum(i["quantity"] * i["unit_price"] for i in items), 2),
+        "actual_delivery": actual.strftime(FMT) if actual else None,
+    }
+
+
+def make_forecasts(rng, orders, inventory):
+    names = {i["sku"]: i["name"] for i in inventory}
+    units = defaultdict(int)
+    for o in orders:
+        if o["order_date"][:7] >= "2025-10":
+            for line in o["items"]:
+                units[line["sku"]] += line["quantity"]
+    forecasts = []
+    for n, (sku, trend) in enumerate(FORECAST_TRENDS.items(), start=1):
+        current = max(1, round(units[sku] / 3))
+        forecasts.append({
+            "id": str(n),
+            "item_sku": sku,
+            "item_name": names[sku],
+            "current_demand": current,
+            "forecasted_demand": max(1, round(current * rng.uniform(*TREND_FACTOR[trend]))),
+            "trend": trend,
+            "period": "Next 30 days",
+        })
+    return forecasts
+
+
+def main():
+    rng = random.Random(SEED)
+    inventory = json.loads((DATA / "inventory.json").read_text())
+    pools = defaultdict(list)
+    for item in inventory:
+        pools[(item["warehouse"], item["category"])].append(item)
+
+    orders, order_id = [], 1
+    for month in range(1, 13):
+        for _ in range(rng.randint(*ORDERS_PER_MONTH)):
+            orders.append(make_order(rng, order_id, month, pools))
+            order_id += 1
+
+    # Fail loudly instead of writing data the integrity tests would reject
+    cost = {i["sku"]: i["unit_cost"] for i in inventory}
+    cogs = sum(line["quantity"] * cost[line["sku"]] for o in orders for line in o["items"])
+    spending = json.loads((DATA / "spending.json").read_text())
+    budget = sum(m["procurement"] for m in spending["monthly_spending"]) + \
+        sum(i["quantity_on_hand"] * i["unit_cost"] for i in inventory)
+    if cogs > budget:
+        raise SystemExit(f"Cost of goods {cogs:,.0f} exceeds procurement plus stock {budget:,.0f}; lower LINE_VALUE")
+
+    (DATA / "orders.json").write_text(json.dumps(orders, indent=2, ensure_ascii=False) + "\n")
+    (DATA / "demand_forecasts.json").write_text(
+        json.dumps(make_forecasts(rng, orders, inventory), indent=2, ensure_ascii=False) + "\n")
+
+    by_status = defaultdict(int)
+    for o in orders:
+        by_status[o["status"]] += 1
+    print(f"{len(orders)} orders, revenue {sum(o['total_value'] for o in orders):,.0f}, {dict(by_status)}")
+
+
+if __name__ == "__main__":
+    main()

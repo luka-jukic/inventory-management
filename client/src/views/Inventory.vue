@@ -125,15 +125,9 @@ export default {
     const STATUS_ORDER = { 'lowStock': 0, 'adequate': 1, 'inStock': 2 }
 
     // Get stock status key (for sorting and translation)
-    const getStockStatusKey = (item) => {
-      if (item.quantity_on_hand <= item.reorder_point) {
-        return 'lowStock'
-      } else if (item.quantity_on_hand <= item.reorder_point * 1.5) {
-        return 'adequate'
-      } else {
-        return 'inStock'
-      }
-    }
+    // Server owns the stock status definition
+    const STATUS_KEY = { low_stock: 'lowStock', adequate: 'adequate', in_stock: 'inStock' }
+    const getStockStatusKey = (item) => STATUS_KEY[item.stock_status]
 
     // Computed property to filter items by search query and sort by stock status
     const filteredItems = computed(() => {
@@ -189,15 +183,8 @@ export default {
       return t(`status.${key}`)
     }
 
-    const getStockStatusClass = (item) => {
-      if (item.quantity_on_hand <= item.reorder_point) {
-        return 'danger'
-      } else if (item.quantity_on_hand <= item.reorder_point * 1.5) {
-        return 'warning'
-      } else {
-        return 'success'
-      }
-    }
+    const getStockStatusClass = (item) =>
+      ({ low_stock: 'danger', adequate: 'warning', in_stock: 'success' }[item.stock_status])
 
     const translateCategory = (category) => {
       const categoryMap = {

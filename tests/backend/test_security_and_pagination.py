@@ -21,19 +21,19 @@ class TestApiToken:
 
     def test_write_without_token_when_disabled(self, client, monkeypatch):
         monkeypatch.setattr(main, "API_TOKEN", None)
-        response = client.post("/api/tasks", json={"title": "t", "dueDate": "2025-01-01"})
+        response = client.post("/api/tasks", json={"title": "t", "due_date": "2025-01-01"})
         assert response.status_code == 201
 
     def test_write_rejected_without_token(self, client, monkeypatch):
         monkeypatch.setattr(main, "API_TOKEN", "secret")
-        response = client.post("/api/tasks", json={"title": "t", "dueDate": "2025-01-01"})
+        response = client.post("/api/tasks", json={"title": "t", "due_date": "2025-01-01"})
         assert response.status_code == 401
 
     def test_write_accepted_with_token(self, client, monkeypatch):
         monkeypatch.setattr(main, "API_TOKEN", "secret")
         response = client.post(
             "/api/tasks",
-            json={"title": "t", "dueDate": "2025-01-01"},
+            json={"title": "t", "due_date": "2025-01-01"},
             headers={"X-API-Token": "secret"},
         )
         assert response.status_code == 201
@@ -47,7 +47,7 @@ class TestInputLimits:
     """String fields are length-limited."""
 
     def test_task_title_too_long(self, client):
-        response = client.post("/api/tasks", json={"title": "x" * 201, "dueDate": "2025-01-01"})
+        response = client.post("/api/tasks", json={"title": "x" * 201, "due_date": "2025-01-01"})
         assert response.status_code == 422
 
     def test_not_found_detail_does_not_echo_input(self, client):

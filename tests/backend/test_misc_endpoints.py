@@ -99,7 +99,7 @@ class TestBacklogEndpoints:
         if len(data) > 0:
             backlog_item = data[0]
             assert "id" in backlog_item
-            assert "order_id" in backlog_item
+            assert "order_number" in backlog_item
             assert "item_sku" in backlog_item
             assert "item_name" in backlog_item
             assert "quantity_needed" in backlog_item

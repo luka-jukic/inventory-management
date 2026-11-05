@@ -1,0 +1,2350 @@
+{
+  "components": {
+    "schemas": {
+      "BacklogItem": {
+        "properties": {
+          "days_delayed": {
+            "minimum": 0.0,
+            "title": "Days Delayed",
+            "type": "integer"
+          },
+          "has_purchase_order": {
+            "default": false,
+            "title": "Has Purchase Order",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "item_sku": {
+            "title": "Item Sku",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "quantity_available": {
+            "minimum": 0.0,
+            "title": "Quantity Available",
+            "type": "integer"
+          },
+          "quantity_needed": {
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity Needed",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unit Cost",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "order_number",
+          "item_sku",
+          "item_name",
+          "quantity_needed",
+          "quantity_available",
+          "unit_cost",
+          "days_delayed",
+          "priority"
+        ],
+        "title": "BacklogItem",
+        "type": "object"
+      },
+      "CategorySpending": {
+        "properties": {
+          "amount": {
+            "minimum": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "change": {
+            "title": "Change",
+            "type": "number"
+          },
+          "percentage": {
+            "title": "Percentage",
+            "type": "number"
+          }
+        },
+        "required": [
+          "category",
+          "amount",
+          "percentage",
+          "change"
+        ],
+        "title": "CategorySpending",
+        "type": "object"
+      },
+      "CategoryValue": {
+        "properties": {
+          "category": {
+            "enum": [
+              "Circuit Boards",
+              "Sensors",
+              "Actuators",
+              "Controllers",
+              "Power Supplies"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "category",
+          "value",
+          "count"
+        ],
+        "title": "CategoryValue",
+        "type": "object"
+      },
+      "CreatePurchaseOrderRequest": {
+        "properties": {
+          "backlog_item_id": {
+            "title": "Backlog Item Id",
+            "type": "string"
+          },
+          "expected_delivery_date": {
+            "format": "date",
+            "title": "Expected Delivery Date",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "supplier_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Supplier Name",
+            "type": "string"
+          },
+          "unit_cost": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unit Cost",
+            "type": "number"
+          }
+        },
+        "required": [
+          "backlog_item_id",
+          "supplier_name",
+          "quantity",
+          "unit_cost",
+          "expected_delivery_date"
+        ],
+        "title": "CreatePurchaseOrderRequest",
+        "type": "object"
+      },
+      "CreateTaskRequest": {
+        "properties": {
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
+          },
+          "priority": {
+            "default": "medium",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "due_date"
+        ],
+        "title": "CreateTaskRequest",
+        "type": "object"
+      },
+      "DashboardSummary": {
+        "properties": {
+          "avg_order_value": {
+            "title": "Avg Order Value",
+            "type": "number"
+          },
+          "avg_processing_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Processing Days"
+          },
+          "inventory_turnover": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inventory Turnover"
+          },
+          "inventory_value_by_category": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryValue"
+            },
+            "title": "Inventory Value By Category",
+            "type": "array"
+          },
+          "low_stock_items": {
+            "title": "Low Stock Items",
+            "type": "integer"
+          },
+          "on_time_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Time Rate"
+          },
+          "order_fill_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Fill Rate"
+          },
+          "orders_fulfilled": {
+            "title": "Orders Fulfilled",
+            "type": "integer"
+          },
+          "pending_orders": {
+            "title": "Pending Orders",
+            "type": "integer"
+          },
+          "revenue_goal": {
+            "title": "Revenue Goal",
+            "type": "number"
+          },
+          "status_counts": {
+            "$ref": "#/components/schemas/StatusCounts"
+          },
+          "total_backlog_items": {
+            "title": "Total Backlog Items",
+            "type": "integer"
+          },
+          "total_inventory_value": {
+            "title": "Total Inventory Value",
+            "type": "number"
+          },
+          "total_orders": {
+            "title": "Total Orders",
+            "type": "integer"
+          },
+          "total_orders_value": {
+            "title": "Total Orders Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_inventory_value",
+          "low_stock_items",
+          "pending_orders",
+          "total_backlog_items",
+          "orders_fulfilled",
+          "order_fill_rate",
+          "avg_processing_days",
+          "inventory_turnover",
+          "total_orders",
+          "total_orders_value",
+          "avg_order_value",
+          "on_time_rate",
+          "revenue_goal",
+          "status_counts",
+          "inventory_value_by_category"
+        ],
+        "title": "DashboardSummary",
+        "type": "object"
+      },
+      "DemandForecast": {
+        "properties": {
+          "current_demand": {
+            "minimum": 0.0,
+            "title": "Current Demand",
+            "type": "integer"
+          },
+          "forecasted_demand": {
+            "minimum": 0.0,
+            "title": "Forecasted Demand",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "item_sku": {
+            "title": "Item Sku",
+            "type": "string"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "trend": {
+            "enum": [
+              "increasing",
+              "stable",
+              "decreasing"
+            ],
+            "title": "Trend",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "item_sku",
+          "item_name",
+          "current_demand",
+          "forecasted_demand",
+          "trend",
+          "period"
+        ],
+        "title": "DemandForecast",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InventoryItem": {
+        "properties": {
+          "category": {
+            "enum": [
+              "Circuit Boards",
+              "Sensors",
+              "Actuators",
+              "Controllers",
+              "Power Supplies"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_updated": {
+            "format": "date-time",
+            "title": "Last Updated",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity_on_hand": {
+            "minimum": 0.0,
+            "title": "Quantity On Hand",
+            "type": "integer"
+          },
+          "reorder_point": {
+            "minimum": 0.0,
+            "title": "Reorder Point",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "stock_status": {
+            "enum": [
+              "low_stock",
+              "adequate",
+              "in_stock"
+            ],
+            "title": "Stock Status",
+            "type": "string"
+          },
+          "unit_cost": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unit Cost",
+            "type": "number"
+          },
+          "warehouse": {
+            "enum": [
+              "San Francisco",
+              "London",
+              "Tokyo"
+            ],
+            "title": "Warehouse",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "name",
+          "category",
+          "warehouse",
+          "quantity_on_hand",
+          "reorder_point",
+          "unit_cost",
+          "location",
+          "last_updated",
+          "stock_status"
+        ],
+        "title": "InventoryItem",
+        "type": "object"
+      },
+      "MonthlySpending": {
+        "properties": {
+          "labor": {
+            "minimum": 0.0,
+            "title": "Labor",
+            "type": "number"
+          },
+          "month": {
+            "enum": [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec"
+            ],
+            "title": "Month",
+            "type": "string"
+          },
+          "operational": {
+            "minimum": 0.0,
+            "title": "Operational",
+            "type": "number"
+          },
+          "overhead": {
+            "minimum": 0.0,
+            "title": "Overhead",
+            "type": "number"
+          },
+          "procurement": {
+            "minimum": 0.0,
+            "title": "Procurement",
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "procurement",
+          "operational",
+          "labor",
+          "overhead"
+        ],
+        "title": "MonthlySpending",
+        "type": "object"
+      },
+      "MonthlyTrend": {
+        "properties": {
+          "delivered_count": {
+            "title": "Delivered Count",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "order_count": {
+            "title": "Order Count",
+            "type": "integer"
+          },
+          "revenue": {
+            "title": "Revenue",
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "order_count",
+          "revenue",
+          "delivered_count"
+        ],
+        "title": "MonthlyTrend",
+        "type": "object"
+      },
+      "Order": {
+        "properties": {
+          "actual_delivery": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Delivery"
+          },
+          "category": {
+            "enum": [
+              "Circuit Boards",
+              "Sensors",
+              "Actuators",
+              "Controllers",
+              "Power Supplies"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "customer": {
+            "title": "Customer",
+            "type": "string"
+          },
+          "expected_delivery": {
+            "format": "date-time",
+            "title": "Expected Delivery",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderLine"
+            },
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "order_date": {
+            "format": "date-time",
+            "title": "Order Date",
+            "type": "string"
+          },
+          "order_number": {
+            "title": "Order Number",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "Delivered",
+              "Shipped",
+              "Processing",
+              "Backordered"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_value": {
+            "minimum": 0.0,
+            "title": "Total Value",
+            "type": "number"
+          },
+          "warehouse": {
+            "enum": [
+              "San Francisco",
+              "London",
+              "Tokyo"
+            ],
+            "title": "Warehouse",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_number",
+          "customer",
+          "items",
+          "status",
+          "order_date",
+          "expected_delivery",
+          "total_value",
+          "warehouse",
+          "category"
+        ],
+        "title": "Order",
+        "type": "object"
+      },
+      "OrderLine": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "unit_price": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unit Price",
+            "type": "number"
+          }
+        },
+        "required": [
+          "sku",
+          "name",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "OrderLine",
+        "type": "object"
+      },
+      "PurchaseOrder": {
+        "properties": {
+          "backlog_item_id": {
+            "title": "Backlog Item Id",
+            "type": "string"
+          },
+          "created_date": {
+            "format": "date",
+            "title": "Created Date",
+            "type": "string"
+          },
+          "expected_delivery_date": {
+            "format": "date",
+            "title": "Expected Delivery Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "status": {
+            "const": "pending",
+            "title": "Status",
+            "type": "string"
+          },
+          "supplier_name": {
+            "title": "Supplier Name",
+            "type": "string"
+          },
+          "unit_cost": {
+            "title": "Unit Cost",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "backlog_item_id",
+          "supplier_name",
+          "quantity",
+          "unit_cost",
+          "expected_delivery_date",
+          "status",
+          "created_date"
+        ],
+        "title": "PurchaseOrder",
+        "type": "object"
+      },
+      "QuarterlyReport": {
+        "properties": {
+          "avg_order_value": {
+            "title": "Avg Order Value",
+            "type": "number"
+          },
+          "delivered_orders": {
+            "title": "Delivered Orders",
+            "type": "integer"
+          },
+          "fulfillment_rate": {
+            "title": "Fulfillment Rate",
+            "type": "number"
+          },
+          "quarter": {
+            "title": "Quarter",
+            "type": "string"
+          },
+          "total_orders": {
+            "title": "Total Orders",
+            "type": "integer"
+          },
+          "total_revenue": {
+            "title": "Total Revenue",
+            "type": "number"
+          }
+        },
+        "required": [
+          "quarter",
+          "total_orders",
+          "total_revenue",
+          "delivered_orders",
+          "avg_order_value",
+          "fulfillment_rate"
+        ],
+        "title": "QuarterlyReport",
+        "type": "object"
+      },
+      "SpendingSummary": {
+        "properties": {
+          "labor_change": {
+            "title": "Labor Change",
+            "type": "number"
+          },
+          "operational_change": {
+            "title": "Operational Change",
+            "type": "number"
+          },
+          "overhead_change": {
+            "title": "Overhead Change",
+            "type": "number"
+          },
+          "procurement_change": {
+            "title": "Procurement Change",
+            "type": "number"
+          },
+          "total_labor_cost": {
+            "title": "Total Labor Cost",
+            "type": "number"
+          },
+          "total_operational_cost": {
+            "title": "Total Operational Cost",
+            "type": "number"
+          },
+          "total_overhead": {
+            "title": "Total Overhead",
+            "type": "number"
+          },
+          "total_procurement_cost": {
+            "title": "Total Procurement Cost",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total_procurement_cost",
+          "total_operational_cost",
+          "total_labor_cost",
+          "total_overhead",
+          "procurement_change",
+          "operational_change",
+          "labor_change",
+          "overhead_change"
+        ],
+        "title": "SpendingSummary",
+        "type": "object"
+      },
+      "StatusCounts": {
+        "properties": {
+          "backordered": {
+            "title": "Backordered",
+            "type": "integer"
+          },
+          "delivered": {
+            "title": "Delivered",
+            "type": "integer"
+          },
+          "processing": {
+            "title": "Processing",
+            "type": "integer"
+          },
+          "shipped": {
+            "title": "Shipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "delivered",
+          "shipped",
+          "processing",
+          "backordered"
+        ],
+        "title": "StatusCounts",
+        "type": "object"
+      },
+      "Task": {
+        "properties": {
+          "due_date": {
+            "format": "date",
+            "title": "Due Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "priority",
+          "due_date",
+          "status"
+        ],
+        "title": "Task",
+        "type": "object"
+      },
+      "TopProduct": {
+        "properties": {
+          "category": {
+            "enum": [
+              "Circuit Boards",
+              "Sensors",
+              "Actuators",
+              "Controllers",
+              "Power Supplies"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "first_order_date": {
+            "format": "date-time",
+            "title": "First Order Date",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity_on_hand": {
+            "title": "Quantity On Hand",
+            "type": "integer"
+          },
+          "reorder_point": {
+            "title": "Reorder Point",
+            "type": "integer"
+          },
+          "revenue": {
+            "title": "Revenue",
+            "type": "number"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "stock_status": {
+            "enum": [
+              "low_stock",
+              "adequate",
+              "in_stock"
+            ],
+            "title": "Stock Status",
+            "type": "string"
+          },
+          "units_ordered": {
+            "title": "Units Ordered",
+            "type": "integer"
+          },
+          "warehouse": {
+            "enum": [
+              "San Francisco",
+              "London",
+              "Tokyo"
+            ],
+            "title": "Warehouse",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sku",
+          "name",
+          "category",
+          "warehouse",
+          "units_ordered",
+          "revenue",
+          "quantity_on_hand",
+          "reorder_point",
+          "stock_status",
+          "first_order_date"
+        ],
+        "title": "TopProduct",
+        "type": "object"
+      },
+      "Transaction": {
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "Purchase",
+              "Operational",
+              "Overhead"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "vendor": {
+            "title": "Vendor",
+            "type": "string"
+          },
+          "warehouse": {
+            "enum": [
+              "San Francisco",
+              "London",
+              "Tokyo"
+            ],
+            "title": "Warehouse",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "description",
+          "category",
+          "warehouse",
+          "amount",
+          "vendor",
+          "type"
+        ],
+        "title": "Transaction",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Factory Inventory Management System",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Root"
+      }
+    },
+    "/api/backlog": {
+      "get": {
+        "description": "Backlog items (longest delayed first) with purchase order status, filtered by their order",
+        "operationId": "get_backlog_api_backlog_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BacklogItem"
+                  },
+                  "title": "Response Get Backlog Api Backlog Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Backlog"
+      }
+    },
+    "/api/dashboard/summary": {
+      "get": {
+        "description": "Get summary statistics for dashboard with optional filtering",
+        "operationId": "get_dashboard_summary_api_dashboard_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Dashboard Summary"
+      }
+    },
+    "/api/dashboard/top-products": {
+      "get": {
+        "description": "Products ordered in the filtered orders: earliest first order first, then by revenue",
+        "operationId": "get_top_products_api_dashboard_top_products_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopProduct"
+                  },
+                  "title": "Response Get Top Products Api Dashboard Top Products Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Top Products"
+      }
+    },
+    "/api/demand": {
+      "get": {
+        "description": "Get demand forecasts",
+        "operationId": "get_demand_forecasts_api_demand_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DemandForecast"
+                  },
+                  "title": "Response Get Demand Forecasts Api Demand Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Demand Forecasts"
+      }
+    },
+    "/api/inventory": {
+      "get": {
+        "description": "Get all inventory items, filtered by warehouse and category (no time dimension)",
+        "operationId": "get_inventory_api_inventory_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryItem"
+                  },
+                  "title": "Response Get Inventory Api Inventory Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Inventory"
+      }
+    },
+    "/api/inventory/{item_id}": {
+      "get": {
+        "description": "Get a specific inventory item",
+        "operationId": "get_inventory_item_api_inventory__item_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Inventory Item"
+      }
+    },
+    "/api/orders": {
+      "get": {
+        "description": "Get orders with optional filtering; limit/offset paginate (default: all)",
+        "operationId": "get_orders_api_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Order"
+                  },
+                  "title": "Response Get Orders Api Orders Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Orders"
+      }
+    },
+    "/api/orders/{order_id}": {
+      "get": {
+        "description": "Get a specific order",
+        "operationId": "get_order_api_orders__order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Order"
+      }
+    },
+    "/api/purchase-orders": {
+      "post": {
+        "description": "Create a purchase order for a backlog item (one per item)",
+        "operationId": "create_purchase_order_api_purchase_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePurchaseOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Purchase Order"
+      }
+    },
+    "/api/purchase-orders/{backlog_item_id}": {
+      "get": {
+        "description": "Get the purchase order of a backlog item",
+        "operationId": "get_purchase_order_by_backlog_item_api_purchase_orders__backlog_item_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "backlog_item_id",
+            "required": true,
+            "schema": {
+              "title": "Backlog Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Purchase Order By Backlog Item"
+      }
+    },
+    "/api/reports/monthly-trends": {
+      "get": {
+        "description": "Get month-over-month trends, honoring the global filters",
+        "operationId": "get_monthly_trends_api_reports_monthly_trends_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MonthlyTrend"
+                  },
+                  "title": "Response Get Monthly Trends Api Reports Monthly Trends Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Monthly Trends"
+      }
+    },
+    "/api/reports/quarterly": {
+      "get": {
+        "description": "Get quarterly performance reports, honoring the global filters",
+        "operationId": "get_quarterly_reports_api_reports_quarterly_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "warehouse",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Warehouse"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuarterlyReport"
+                  },
+                  "title": "Response Get Quarterly Reports Api Reports Quarterly Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quarterly Reports"
+      }
+    },
+    "/api/spending/categories": {
+      "get": {
+        "description": "Procurement spend by category; percentage = share of procurement, derived from the amounts",
+        "operationId": "get_category_spending_api_spending_categories_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategorySpending"
+                  },
+                  "title": "Response Get Category Spending Api Spending Categories Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Category Spending"
+      }
+    },
+    "/api/spending/monthly": {
+      "get": {
+        "description": "Get monthly spending breakdown",
+        "operationId": "get_monthly_spending_api_spending_monthly_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MonthlySpending"
+                  },
+                  "title": "Response Get Monthly Spending Api Spending Monthly Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Monthly Spending"
+      }
+    },
+    "/api/spending/summary": {
+      "get": {
+        "description": "Spending totals derived from the monthly rows (optionally one month or quarter)",
+        "operationId": "get_spending_summary_api_spending_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Spending Summary"
+      }
+    },
+    "/api/spending/transactions": {
+      "get": {
+        "description": "Get recent transactions, optionally for one month or quarter",
+        "operationId": "get_recent_transactions_api_spending_transactions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Transaction"
+                  },
+                  "title": "Response Get Recent Transactions Api Spending Transactions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recent Transactions"
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "description": "Get all tasks, newest first",
+        "operationId": "get_tasks_api_tasks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "title": "Response Get Tasks Api Tasks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Tasks"
+      },
+      "post": {
+        "description": "Create a task",
+        "operationId": "create_task_api_tasks_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Task"
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "delete": {
+        "description": "Delete a task",
+        "operationId": "delete_task_api_tasks__task_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Task"
+      },
+      "patch": {
+        "description": "Toggle a task between pending and completed",
+        "operationId": "toggle_task_api_tasks__task_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Toggle Task"
+      }
+    }
+  }
+}

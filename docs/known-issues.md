@@ -38,6 +38,15 @@ Found while writing this documentation (2026-11-05). File references point to th
 | Finance filtered months in the browser with `toISOString()`, so in UTC+ time zones the 1st of a month fell into the previous month | The API filters by month |
 | Inventory, Orders, Finance and three dialogs showed ¥ in front of unconverted USD amounts | All amounts go through `utils/currency.js` |
 | Backlog dialog showed an "Expected Date" the API never sends | Row removed |
+| 210 of 250 orders shipped items from a warehouse that does not stock them; 38 orders listed the same SKU twice | Orders are generated from the inventory: one warehouse and one category per order, distinct lines |
+| Most Shipped/Processing orders were months overdue; 18 of 22 Backordered orders had no backlog item and 7 had all items in stock | Statuses follow the dates; Backordered means a line exceeds stock; the backlog is computed from those orders (25 items) |
+| Backlog `days_delayed` (1-5) and quantities were stored copies that had drifted (real delay up to 354 days) | Computed at request time; priority follows the delay |
+| Cost of goods was $26.9M against $7.4M procurement; 41% of lines sold below cost | Prices are cost plus 25-60%; quantities fit procurement plus stock (stock tripled so turnover is about 3.5) |
+| Springs and a pulley were filed under Sensors | Moved to Actuators |
+| Stock status had three definitions (server, Inventory, Overview) | One `stock_status` from the API |
+| Overview computed top products from every order in the browser | `/api/dashboard/top-products` |
+| Task due dates showed a day early west of UTC | Parsed as local dates |
+| Concurrent task changes could fail with 500 | Task changes run under a lock |
 
 ## Functional gaps
 
@@ -53,5 +62,7 @@ Found while writing this documentation (2026-11-05). File references point to th
 
 - Frontend tests cover the API client, `BaseModal`, the Backlog view, filters and locales; the other views have none.
 - Tasks and purchase orders are kept in memory only; a server restart clears them.
-- Order selling prices are random: about 40% of order lines sell below the item's `unit_cost`, so margins computed from this data are meaningless.
 - Spending categories (Raw Materials, Components, ...) are cost types, not the product categories, so the category filter does not apply to Finance.
+- Transactions only cover September 2025.
+- Money is stored as floating point; fine for a demo, use integer cents or `Decimal` for real accounting.
+- Customers and suppliers are free-text names, not entities.

@@ -38,6 +38,9 @@ export const api = {
   getDashboardSummary: (filters = {}, options = {}) =>
     get('/dashboard/summary', buildParams(filters), options),
 
+  getTopProducts: (filters = {}, options = {}) =>
+    get('/dashboard/top-products', buildParams(filters), options),
+
   getSpendingSummary: (filters = {}, options = {}) =>
     get('/spending/summary', buildParams(filters, ['month']), options),
 

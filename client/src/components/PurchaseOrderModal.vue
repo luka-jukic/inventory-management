@@ -18,7 +18,7 @@
               </div>
               <div class="info-item">
                 <div class="info-label">{{ t('purchaseOrder.orderId') }}</div>
-                <div class="info-value mono">{{ backlogItem.order_id }}</div>
+                <div class="info-value mono">{{ backlogItem.order_number }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">{{ t('purchaseOrder.shortage') }}</div>

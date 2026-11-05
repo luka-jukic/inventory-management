@@ -4,10 +4,16 @@ State is reset per test by the autouse fixture in conftest.py.
 """
 import pytest
 
+import main
+
+# Backlog IDs are computed (BL-<order>-<sku>); use the two longest-delayed items
+BACKLOG = main.compute_backlog(main.orders)
+FIRST, SECOND = BACKLOG[0]["id"], BACKLOG[1]["id"]
+
 
 def po_payload(**overrides):
     payload = {
-        "backlog_item_id": "1",
+        "backlog_item_id": FIRST,
         "supplier_name": "Acme Filters",
         "quantity": 350,
         "unit_cost": 12.5,
@@ -28,7 +34,7 @@ class TestPurchaseOrderEndpoints:
 
         po = response.json()
         assert po["id"].startswith("PO-")
-        assert po["backlog_item_id"] == "1"
+        assert po["backlog_item_id"] == FIRST
         assert po["status"] == "pending"
         assert po["expected_delivery_date"] == "2026-12-01"
         assert len(po["created_date"]) == 10
@@ -37,7 +43,7 @@ class TestPurchaseOrderEndpoints:
         """Test fetching the purchase order that was created."""
         created = client.post("/api/purchase-orders", json=po_payload()).json()
 
-        response = client.get("/api/purchase-orders/1")
+        response = client.get(f"/api/purchase-orders/{FIRST}")
         assert response.status_code == 200
         assert response.json() == created
 
@@ -46,8 +52,8 @@ class TestPurchaseOrderEndpoints:
         client.post("/api/purchase-orders", json=po_payload())
 
         backlog = {b["id"]: b for b in client.get("/api/backlog").json()}
-        assert backlog["1"]["has_purchase_order"] is True
-        assert backlog["2"]["has_purchase_order"] is False
+        assert backlog[FIRST]["has_purchase_order"] is True
+        assert backlog[SECOND]["has_purchase_order"] is False
 
     def test_create_duplicate_purchase_order(self, client):
         """Test that a second PO for the same backlog item is rejected."""
@@ -76,7 +82,7 @@ class TestPurchaseOrderEndpoints:
 
     def test_get_nonexistent_purchase_order(self, client):
         """Test getting a PO for an item without one."""
-        response = client.get("/api/purchase-orders/1")
+        response = client.get(f"/api/purchase-orders/{FIRST}")
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
@@ -92,34 +98,34 @@ class TestTaskEndpoints:
 
     def test_create_task(self, client):
         """Test creating a task."""
-        response = client.post("/api/tasks", json={"title": "Count stock", "priority": "high", "dueDate": "2026-11-10"})
+        response = client.post("/api/tasks", json={"title": "Count stock", "priority": "high", "due_date": "2026-11-10"})
         assert response.status_code == 201
 
         task = response.json()
         assert task["title"] == "Count stock"
         assert task["priority"] == "high"
-        assert task["dueDate"] == "2026-11-10"
+        assert task["due_date"] == "2026-11-10"
         assert task["status"] == "pending"
         assert client.get("/api/tasks").json() == [task]
 
     def test_new_tasks_come_first(self, client):
         """Test that the newest task is first in the list."""
-        client.post("/api/tasks", json={"title": "First", "dueDate": "2026-11-10"})
-        client.post("/api/tasks", json={"title": "Second", "dueDate": "2026-11-10"})
+        client.post("/api/tasks", json={"title": "First", "due_date": "2026-11-10"})
+        client.post("/api/tasks", json={"title": "Second", "due_date": "2026-11-10"})
 
         titles = [t["title"] for t in client.get("/api/tasks").json()]
         assert titles == ["Second", "First"]
 
     def test_toggle_task(self, client):
         """Test toggling a task to completed and back."""
-        task = client.post("/api/tasks", json={"title": "Toggle me", "dueDate": "2026-11-10"}).json()
+        task = client.post("/api/tasks", json={"title": "Toggle me", "due_date": "2026-11-10"}).json()
 
         assert client.patch(f"/api/tasks/{task['id']}").json()["status"] == "completed"
         assert client.patch(f"/api/tasks/{task['id']}").json()["status"] == "pending"
 
     def test_delete_task(self, client):
         """Test deleting a task."""
-        task = client.post("/api/tasks", json={"title": "Delete me", "dueDate": "2026-11-10"}).json()
+        task = client.post("/api/tasks", json={"title": "Delete me", "due_date": "2026-11-10"}).json()
 
         response = client.delete(f"/api/tasks/{task['id']}")
         assert response.status_code == 204
@@ -133,8 +139,8 @@ class TestTaskEndpoints:
         assert "not found" in response.json()["detail"].lower()
 
     @pytest.mark.parametrize("body", [
-        {"title": "", "dueDate": "2026-11-10"},
-        {"title": "x", "priority": "urgent", "dueDate": "2026-11-10"},
+        {"title": "", "due_date": "2026-11-10"},
+        {"title": "x", "priority": "urgent", "due_date": "2026-11-10"},
         {"title": "x"},
     ])
     def test_create_task_invalid_input(self, client, body):

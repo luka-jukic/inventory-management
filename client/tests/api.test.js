@@ -45,6 +45,15 @@ describe('api filter params', () => {
     expect(http.get.mock.calls[0][1].params).toEqual({ warehouse: 'Tokyo', category: 'Sensors' })
   })
 
+  it('sends all four filters for top products', async () => {
+    const { api } = await loadApi()
+    await api.getTopProducts({ warehouse: 'Tokyo', month: '2025-09', category: 'all' })
+    expect(http.get).toHaveBeenCalledWith('/dashboard/top-products', {
+      params: { warehouse: 'Tokyo', month: '2025-09' },
+      signal: undefined
+    })
+  })
+
   it('passes the abort signal through', async () => {
     const { api } = await loadApi()
     const ctrl = new AbortController()
