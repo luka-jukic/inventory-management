@@ -1,42 +1,70 @@
 <template>
-  <div class="app">
-    <header class="top-nav">
-      <div class="nav-container">
-        <div class="logo">
+  <div class="app" :class="{ collapsed }">
+    <aside id="sidebar" class="sidebar" :class="{ open: mobileOpen }" :inert="isMobile && !mobileOpen">
+      <div class="sidebar-logo">
+        <span class="logo-mark" aria-hidden="true">{{ t('nav.companyName').charAt(0) }}</span>
+        <div class="logo-text">
           <h1>{{ t('nav.companyName') }}</h1>
           <span class="subtitle">{{ t('nav.subtitle') }}</span>
         </div>
-        <nav class="nav-tabs">
-          <router-link to="/" :class="{ active: $route.path === '/' }">
-            {{ t('nav.overview') }}
-          </router-link>
-          <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
-            {{ t('nav.inventory') }}
-          </router-link>
-          <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
-            {{ t('nav.orders') }}
-          </router-link>
-          <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
-            {{ t('nav.finance') }}
-          </router-link>
-          <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
-            {{ t('nav.demandForecast') }}
-          </router-link>
-          <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
-            Reports
-          </router-link>
-        </nav>
-        <LanguageSwitcher />
-        <ProfileMenu
-          @show-profile-details="showProfileDetails = true"
-          @show-tasks="showTasks = true"
-        />
       </div>
-    </header>
-    <FilterBar />
-    <main class="main-content">
-      <router-view />
-    </main>
+      <nav class="sidebar-nav">
+        <router-link
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          class="nav-link"
+          :title="collapsed ? t(item.labelKey) : null"
+        >
+          <svg class="nav-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path v-for="d in item.icon" :key="d" :d="d" />
+          </svg>
+          <span class="nav-label">{{ t(item.labelKey) }}</span>
+        </router-link>
+      </nav>
+      <button
+        type="button"
+        class="collapse-toggle"
+        :aria-label="collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')"
+        :title="collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')"
+        :aria-expanded="!collapsed"
+        @click="toggleCollapsed"
+      >
+        <svg class="nav-icon chevron" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+        <span class="nav-label">{{ t('nav.collapseSidebar') }}</span>
+      </button>
+    </aside>
+    <div v-if="isMobile && mobileOpen" class="backdrop" aria-hidden="true" @click="mobileOpen = false"></div>
+
+    <div class="content">
+      <header class="topbar">
+        <button
+          type="button"
+          class="hamburger"
+          :aria-label="t('nav.openMenu')"
+          :aria-expanded="mobileOpen"
+          aria-controls="sidebar"
+          @click="mobileOpen = !mobileOpen"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div class="topbar-actions">
+          <LanguageSwitcher />
+          <ProfileMenu
+            @show-profile-details="showProfileDetails = true"
+            @show-tasks="showTasks = true"
+          />
+        </div>
+      </header>
+      <FilterBar />
+      <main class="main-content">
+        <router-view />
+      </main>
+    </div>
 
     <ProfileDetailsModal
       :is-open="showProfileDetails"
@@ -55,7 +83,8 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from './api'
 import { useAuth } from './composables/useAuth'
 import { useI18n } from './composables/useI18n'
@@ -64,6 +93,17 @@ import ProfileMenu from './components/ProfileMenu.vue'
 import ProfileDetailsModal from './components/ProfileDetailsModal.vue'
 import TasksModal from './components/TasksModal.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+
+const navItems = [
+  { to: '/', labelKey: 'nav.overview', icon: ['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'] },
+  { to: '/inventory', labelKey: 'nav.inventory', icon: ['M21 8l-9-5-9 5 9 5 9-5z', 'M3 8v8l9 5 9-5V8', 'M12 13v8'] },
+  { to: '/orders', labelKey: 'nav.orders', icon: ['M9 4h6v3H9z', 'M15 5h2a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h2', 'M9 12h6M9 16h6'] },
+  { to: '/spending', labelKey: 'nav.finance', icon: ['M12 3v18', 'M16 7.5c0-1.4-1.8-2.5-4-2.5s-4 1.1-4 2.5S9.8 10 12 10s4 1.1 4 2.5-1.8 2.5-4 2.5-4-1.1-4-2.5'] },
+  { to: '/demand', labelKey: 'nav.demandForecast', icon: ['M3 17l6-6 4 4 8-8', 'M15 7h6v6'] },
+  { to: '/reports', labelKey: 'nav.reports', icon: ['M5 20V10', 'M12 20V4', 'M19 20v-7'] }
+]
+
+const STORAGE_KEY = 'sidebarCollapsed'
 
 export default {
   name: 'App',
@@ -77,6 +117,7 @@ export default {
   setup() {
     const { currentUser } = useAuth()
     const { t } = useI18n()
+    const route = useRoute()
     const showProfileDetails = ref(false)
     const showTasks = ref(false)
     const apiTasks = ref([])
@@ -146,10 +187,59 @@ export default {
       }
     }
 
-    onMounted(loadTasks)
+    // Sidebar state
+    const readCollapsed = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored !== null) return stored === 'true'
+      } catch (e) { /* storage unavailable */ }
+      return window.matchMedia('(min-width: 768px) and (max-width: 1024px)').matches
+    }
+
+    const collapsed = ref(readCollapsed())
+    const mobileOpen = ref(false)
+    const mobileQuery = window.matchMedia('(max-width: 767px)')
+    const isMobile = ref(mobileQuery.matches)
+
+    const toggleCollapsed = () => {
+      collapsed.value = !collapsed.value
+      try {
+        localStorage.setItem(STORAGE_KEY, String(collapsed.value))
+      } catch (e) { /* storage unavailable */ }
+    }
+
+    const onMobileChange = (e) => {
+      isMobile.value = e.matches
+      if (!e.matches) mobileOpen.value = false
+    }
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') mobileOpen.value = false
+    }
+
+    watch(() => route.path, () => {
+      mobileOpen.value = false
+    })
+
+    onMounted(() => {
+      loadTasks()
+      isMobile.value = mobileQuery.matches
+      mobileQuery.addEventListener('change', onMobileChange)
+      document.addEventListener('keydown', onKeydown)
+    })
+
+    onUnmounted(() => {
+      mobileQuery.removeEventListener('change', onMobileChange)
+      document.removeEventListener('keydown', onKeydown)
+    })
 
     return {
       t,
+      navItems,
+      collapsed,
+      mobileOpen,
+      isMobile,
+      toggleCollapsed,
       showProfileDetails,
       showTasks,
       tasks,
@@ -162,6 +252,36 @@ export default {
 </script>
 
 <style>
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --success: #059669;
+  --warning: #ea580c;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow: 0 1px 3px rgb(15 23 42 / 0.08), 0 1px 2px rgb(15 23 42 / 0.04);
+  --sidebar-w: 240px;
+  --sidebar-w-collapsed: 68px;
+  --topbar-h: 60px;
+  --content-max: 1440px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -170,200 +290,386 @@ export default {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #f8fafc;
+  font-size: 14px;
+  background: var(--bg);
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Shell */
 .app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+  transition: grid-template-columns 0.2s;
+}
+
+.content {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
 }
 
-.top-nav {
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+/* Sidebar */
+.sidebar {
   position: sticky;
   top: 0;
-  z-index: 100;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: var(--space-4) var(--space-3);
+  min-width: 0;
+  overflow-y: auto;
 }
 
-.nav-container {
-  max-width: 1600px;
-  margin: 0 auto;
+.sidebar-logo {
   display: flex;
   align-items: center;
-  padding: 0 2rem;
-  height: 70px;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-5);
 }
 
-.nav-container > .nav-tabs {
-  margin-left: auto;
-  margin-right: 1rem;
-}
-
-.nav-container > .language-switcher {
-  margin-right: 1rem;
-}
-
-.logo {
+.logo-mark {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
 }
 
-.logo h1 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  color: #0f172a;
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.logo-text h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
   letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .subtitle {
-  font-size: 0.813rem;
-  color: #64748b;
-  font-weight: 400;
-  padding-left: 0.75rem;
-  border-left: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.nav-tabs {
+.sidebar-nav {
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
 }
 
-.nav-tabs a {
-  padding: 0.625rem 1.25rem;
-  color: #64748b;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.938rem;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+.nav-link,
+.collapse-toggle {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.15s, color 0.15s;
 }
 
-.nav-tabs a:hover {
-  color: #0f172a;
-  background: #f1f5f9;
+.nav-link:hover,
+.collapse-toggle:hover {
+  background: var(--bg);
+  color: var(--text);
 }
 
-.nav-tabs a.active {
-  color: #2563eb;
-  background: #eff6ff;
+.nav-link.router-link-active {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-.nav-tabs a.active::after {
+.nav-link.router-link-active::before {
   content: '';
   position: absolute;
-  bottom: -1px;
   left: 0;
-  right: 0;
-  height: 2px;
-  background: #2563eb;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+.nav-link:focus-visible,
+.collapse-toggle:focus-visible,
+.hamburger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+}
+
+.collapse-toggle {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding-top: var(--space-3);
+}
+
+.chevron {
+  transition: transform 0.2s;
+}
+
+/* Topbar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: rgb(15 23 42 / 0.4);
+}
+
+/* Desktop and tablet: collapsed sidebar */
+@media (min-width: 768px) {
+  .app.collapsed {
+    grid-template-columns: var(--sidebar-w-collapsed) minmax(0, 1fr);
+  }
+
+  .app.collapsed .logo-text,
+  .app.collapsed .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app.collapsed .sidebar {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  .app.collapsed .sidebar-logo {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .app.collapsed .nav-link,
+  .app.collapsed .collapse-toggle {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .app.collapsed .chevron {
+    transform: rotate(180deg);
+  }
+}
+
+/* Mobile drawer */
+@media (max-width: 767px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 150;
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .collapse-toggle {
+    display: none;
+  }
+
+  .hamburger {
+    display: inline-flex;
+  }
+
+  .topbar {
+    padding: 0 var(--space-4);
+  }
+
+  .topbar-actions {
+    gap: var(--space-2);
+  }
+
+  .topbar .profile-name,
+  .topbar .language-label {
+    display: none;
+  }
 }
 
 .main-content {
   flex: 1;
-  max-width: 1600px;
   width: 100%;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 1.5rem 2rem;
+  padding: var(--space-6);
+}
+
+@media (max-width: 767px) {
+  .main-content {
+    padding: var(--space-4);
+  }
 }
 
 .page-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
 }
 
 .page-header h2 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 0.375rem;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-1);
   letter-spacing: -0.025em;
 }
 
 .page-header p {
-  color: #64748b;
-  font-size: 0.938rem;
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .stat-card {
-  background: white;
-  padding: 1.25rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: var(--surface);
+  padding: var(--space-5);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
 }
 
 .stat-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow);
 }
 
 .stat-label {
-  color: #64748b;
-  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.625rem;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
 }
 
 .stat-value {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text);
   letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card.warning .stat-value {
-  color: #ea580c;
+  color: var(--warning);
 }
 
 .stat-card.success .stat-value {
-  color: #059669;
+  color: var(--success);
 }
 
 .stat-card.danger .stat-value {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .stat-card.info .stat-value {
-  color: #2563eb;
+  color: var(--info);
 }
 
 .card {
-  background: white;
-  border-radius: 10px;
-  padding: 1.25rem;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-5);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.875rem;
-  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
 }
 
 .card-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
   letter-spacing: -0.025em;
 }
 
@@ -377,26 +683,26 @@ table {
 }
 
 thead {
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 th {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-3) var(--space-4);
   font-weight: 600;
-  color: #475569;
-  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 td {
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid #f1f5f9;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
   color: #334155;
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 
 tbody tr {
@@ -404,83 +710,44 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: #f8fafc;
+  background: var(--bg);
 }
 
 .badge {
   display: inline-block;
-  padding: 0.313rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
-.badge.success {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.badge.warning {
-  background: #fed7aa;
-  color: #92400e;
-}
-
-.badge.danger {
-  background: #fecaca;
-  color: #991b1b;
-}
-
-.badge.info {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.badge.increasing {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.badge.decreasing {
-  background: #fecaca;
-  color: #991b1b;
-}
-
-.badge.stable {
-  background: #e0e7ff;
-  color: #3730a3;
-}
-
-.badge.high {
-  background: #fecaca;
-  color: #991b1b;
-}
-
-.badge.medium {
-  background: #fed7aa;
-  color: #92400e;
-}
-
-.badge.low {
-  background: #dbeafe;
-  color: #1e40af;
-}
+.badge.success { background: #d1fae5; color: #065f46; }
+.badge.warning { background: #fed7aa; color: #92400e; }
+.badge.danger { background: #fecaca; color: #991b1b; }
+.badge.info { background: #dbeafe; color: #1e40af; }
+.badge.increasing { background: #d1fae5; color: #065f46; }
+.badge.decreasing { background: #fecaca; color: #991b1b; }
+.badge.stable { background: #e0e7ff; color: #3730a3; }
+.badge.high { background: #fecaca; color: #991b1b; }
+.badge.medium { background: #fed7aa; color: #92400e; }
+.badge.low { background: #dbeafe; color: #1e40af; }
 
 .loading {
   text-align: center;
-  padding: 3rem;
-  color: #64748b;
-  font-size: 0.938rem;
+  padding: var(--space-7);
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .error {
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
-  padding: 1rem;
+  padding: var(--space-4);
   border-radius: 8px;
-  margin: 1rem 0;
-  font-size: 0.938rem;
+  margin: var(--space-4) 0;
+  font-size: 14px;
 }
 </style>

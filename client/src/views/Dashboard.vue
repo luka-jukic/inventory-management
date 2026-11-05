@@ -180,7 +180,7 @@
                   <th>{{ t('dashboard.inventoryShortages.shortage') }}</th>
                   <th>{{ t('dashboard.inventoryShortages.daysDelayed') }}</th>
                   <th>{{ t('dashboard.inventoryShortages.priority') }}</th>
-                  <th>Actions</th>
+                  <th>{{ t('dashboard.inventoryShortages.actions') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,18 +210,18 @@
                   </td>
                   <td>
                     <button
-                      v-if="!item.purchase_order_id"
+                      v-if="!item.has_purchase_order"
                       @click.stop="openPOModal(item)"
                       class="po-button create"
                     >
-                      Create PO
+                      {{ t('dashboard.inventoryShortages.createPO') }}
                     </button>
                     <button
                       v-else
                       @click.stop="viewPO(item)"
                       class="po-button view"
                     >
-                      View PO
+                      {{ t('dashboard.inventoryShortages.viewPO') }}
                     </button>
                   </td>
                 </tr>
@@ -290,6 +290,7 @@
       :is-open="showPOModal"
       :backlog-item="selectedBacklogForPO"
       :mode="poModalMode"
+      :unit-cost="selectedPOUnitCost"
       @close="showPOModal = false"
       @po-created="handlePOCreated"
     />
@@ -304,12 +305,14 @@ import { useI18n } from '../composables/useI18n'
 import { formatCurrency } from '../utils/currency'
 import ProductDetailModal from '../components/ProductDetailModal.vue'
 import BacklogDetailModal from '../components/BacklogDetailModal.vue'
+import PurchaseOrderModal from '../components/PurchaseOrderModal.vue'
 
 export default {
   name: 'Dashboard',
   components: {
     ProductDetailModal,
     BacklogDetailModal,
+    PurchaseOrderModal,
   },
   setup() {
     const { t, currentCurrency, translateProductName, translateWarehouse } = useI18n()
@@ -650,6 +653,12 @@ export default {
       showBacklogModal.value = true
     }
 
+    const selectedPOUnitCost = computed(() => {
+      const sku = selectedBacklogForPO.value?.item_sku
+      const inv = inventoryItems.value.find(i => i.sku === sku)
+      return inv ? inv.unit_cost : null
+    })
+
     const openPOModal = (item) => {
       selectedBacklogForPO.value = item
       poModalMode.value = 'create'
@@ -666,7 +675,7 @@ export default {
       // Update the backlog item with the new PO ID
       const item = allBacklogItems.value.find(b => b.id === poData.backlog_item_id)
       if (item) {
-        item.purchase_order_id = poData.id
+        item.has_purchase_order = true
         item.purchase_order = poData
       }
       showPOModal.value = false
@@ -717,6 +726,7 @@ export default {
       translateWarehouse,
       showPOModal,
       selectedBacklogForPO,
+      selectedPOUnitCost,
       poModalMode,
       openPOModal,
       viewPO,
@@ -731,7 +741,6 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
 }
 
 .header-meta {

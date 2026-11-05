@@ -6,6 +6,10 @@ export default {
     orders: 'Orders',
     finance: 'Finance',
     demandForecast: 'Demand Forecast',
+    reports: 'Reports',
+    collapseSidebar: 'Collapse sidebar',
+    expandSidebar: 'Expand sidebar',
+    openMenu: 'Open menu',
     companyName: 'Catalyst Components',
     subtitle: 'Inventory Management System'
   },
@@ -55,7 +59,10 @@ export default {
       daysDelayed: 'Days Delayed',
       priority: 'Priority',
       unitsShort: 'units short',
-      days: 'days'
+      days: 'days',
+      actions: 'Actions',
+      createPO: 'Create PO',
+      viewPO: 'View PO'
     },
     topProducts: {
       title: 'Top Products by Revenue',
@@ -312,6 +319,28 @@ export default {
   },
 
   // Common
+  purchaseOrder: {
+    createTitle: 'Create Purchase Order',
+    viewTitle: 'Purchase Order',
+    item: 'Item',
+    orderId: 'Order ID',
+    shortage: 'Shortage',
+    units: 'units',
+    supplier: 'Supplier',
+    quantity: 'Quantity',
+    unitCost: 'Unit Cost',
+    total: 'Total',
+    expectedDelivery: 'Expected Delivery',
+    createdDate: 'Created',
+    status: 'Status',
+    notes: 'Notes',
+    loading: 'Loading purchase order...',
+    loadError: 'Failed to load the purchase order.',
+    saveError: 'Failed to create the purchase order.',
+    submit: 'Create Purchase Order',
+    saving: 'Saving...',
+    close: 'Close'
+  },
   common: {
     loading: 'Loading...',
     error: 'Error',
