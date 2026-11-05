@@ -102,18 +102,18 @@ export default {
 
 <style scoped>
 .filters-bar {
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
   padding: 0.75rem 0;
   position: sticky;
-  top: 70px;
+  top: var(--topbar-h);
   z-index: 90;
 }
 
 .filters-container {
-  max-width: 1600px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 var(--space-6);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -124,6 +124,7 @@ export default {
   align-items: center;
   gap: 1rem;
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .filter-group {
