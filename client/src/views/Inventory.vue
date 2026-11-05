@@ -144,7 +144,7 @@ export default {
       if (searchQuery.value.trim()) {
         const query = searchQuery.value.toLowerCase().trim()
         filtered = filtered.filter(item =>
-          item.name.toLowerCase().includes(query)
+          [item.name, item.sku, item.location].some(v => v?.toLowerCase().includes(query))
         )
       }
 

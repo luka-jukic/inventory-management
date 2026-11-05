@@ -1,5 +1,5 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -194,12 +194,23 @@ def get_demand_forecasts():
     """Get demand forecasts"""
     return demand_forecasts
 
+def filter_backlog(warehouse: Optional[str] = None, category: Optional[str] = None,
+                   status: Optional[str] = None, month: Optional[str] = None) -> list:
+    """Backlog items whose order matches the filters (joined on order_number)"""
+    order_numbers = {o["order_number"] for o in filter_by_month(apply_filters(orders, warehouse, category, status), month)}
+    return [item for item in backlog_items if item["order_id"] in order_numbers]
+
 @app.get("/api/backlog", response_model=List[BacklogItem])
-def get_backlog():
-    """Get backlog items with purchase order status"""
+def get_backlog(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None
+):
+    """Get backlog items with purchase order status, optionally filtered by their order"""
     # Add has_purchase_order flag to each backlog item
     result = []
-    for item in backlog_items:
+    for item in filter_backlog(warehouse, category, status, month):
         item_dict = dict(item)
         # Check if this backlog item has a purchase order
         has_po = any(po["backlog_item_id"] == item["id"] for po in purchase_orders)
@@ -225,13 +236,31 @@ def get_dashboard_summary(
     total_inventory_value = sum(item["quantity_on_hand"] * item["unit_cost"] for item in filtered_inventory)
     low_stock_items = len([item for item in filtered_inventory if item["quantity_on_hand"] <= item["reorder_point"]])
     pending_orders = len([order for order in filtered_orders if order["status"] in ["Processing", "Backordered"]])
-    total_backlog_items = len(backlog_items)
+    total_backlog_items = len(filter_backlog(warehouse, category, status, month))
+
+    # KPIs from the filtered data
+    delivered = [o for o in filtered_orders if o["status"] == "Delivered"]
+    backordered = sum(1 for o in filtered_orders if o["status"] == "Backordered")
+    order_fill_rate = round(100 * (1 - backordered / len(filtered_orders)), 1) if filtered_orders else None
+    processing_days = [
+        (datetime.fromisoformat(o["actual_delivery"]) - datetime.fromisoformat(o["order_date"])).days
+        for o in filtered_orders if o.get("actual_delivery")
+    ]
+    avg_processing_days = round(sum(processing_days) / len(processing_days), 1) if processing_days else None
+    # Turnover = cost of delivered goods / current inventory value
+    unit_cost = {item["sku"]: item["unit_cost"] for item in inventory_items}
+    cost_of_goods_sold = sum(i["quantity"] * unit_cost.get(i["sku"], 0) for o in delivered for i in o["items"])
+    inventory_turnover = round(cost_of_goods_sold / total_inventory_value, 1) if total_inventory_value else None
 
     return {
         "total_inventory_value": round(total_inventory_value, 2),
         "low_stock_items": low_stock_items,
         "pending_orders": pending_orders,
         "total_backlog_items": total_backlog_items,
+        "orders_fulfilled": len(delivered),
+        "order_fill_rate": order_fill_rate,
+        "avg_processing_days": avg_processing_days,
+        "inventory_turnover": inventory_turnover,
         "total_orders_value": sum(order["total_value"] for order in filtered_orders)
     }
 

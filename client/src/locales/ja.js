@@ -88,7 +88,7 @@ export default {
     description: 'すべての在庫品目の追跡と管理',
     stockLevels: '在庫レベル',
     skus: 'SKU',
-    searchPlaceholder: '品目名で検索...',
+    searchPlaceholder: '品目名・SKU・拠点で検索...',
     clearSearch: '検索をクリア',
     totalItems: '総品目数',
     totalValue: '総価値',

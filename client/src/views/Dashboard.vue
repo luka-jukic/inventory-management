@@ -15,10 +15,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.inventoryTurnover') }}</span>
             </div>
-            <div class="kpi-value">4.2</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 4.5 (-6.67%)</div>
+            <div class="kpi-value">{{ kpis.turnover.display }}</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 4.5 ({{ kpis.turnover.delta }})</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress" style="width: 93.33%"></div>
+              <div class="kpi-progress" :class="{ success: kpis.turnover.good }" :style="{ width: kpis.turnover.width + '%' }"></div>
             </div>
           </div>
 
@@ -26,10 +26,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.ordersFulfilled') }}</span>
             </div>
-            <div class="kpi-value">{{ ordersData.fulfilled }}</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: {{ ordersData.goal }} ({{ calculatePercentage(ordersData.fulfilled, ordersData.goal) }}%)</div>
+            <div class="kpi-value">{{ kpis.fulfilled.display }}</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 200 ({{ kpis.fulfilled.delta }})</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress" :style="{ width: calculatePercentage(ordersData.fulfilled, ordersData.goal) + '%' }"></div>
+              <div class="kpi-progress" :class="{ success: kpis.fulfilled.good }" :style="{ width: kpis.fulfilled.width + '%' }"></div>
             </div>
           </div>
 
@@ -37,10 +37,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.orderFillRate') }}</span>
             </div>
-            <div class="kpi-value">{{ fillRate }}%</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 95% ({{ fillRate - 95 > 0 ? '+' : '' }}{{ (fillRate - 95).toFixed(2) }}%)</div>
+            <div class="kpi-value">{{ kpis.fillRate.display }}%</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 95% ({{ kpis.fillRate.delta }})</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress success" :style="{ width: (fillRate / 95 * 100) + '%' }"></div>
+              <div class="kpi-progress" :class="{ success: kpis.fillRate.good }" :style="{ width: kpis.fillRate.width + '%' }"></div>
             </div>
           </div>
 
@@ -59,10 +59,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.avgProcessingTime') }}</span>
             </div>
-            <div class="kpi-value">2.8</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 3.0 (-6.67%)</div>
+            <div class="kpi-value">{{ kpis.processing.display }}</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 3.0 ({{ kpis.processing.delta }})</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress success" style="width: 93.33%"></div>
+              <div class="kpi-progress" :class="{ success: kpis.processing.good }" :style="{ width: kpis.processing.width + '%' }"></div>
             </div>
           </div>
         </div>
@@ -348,8 +348,6 @@ export default {
       getCurrentFilters
     } = useFilters()
 
-    const ordersData = ref({ fulfilled: 187, goal: 200 })
-    const fillRate = ref(96.8)
 
     const revenueGoal = computed(() => {
       // $800K per month, so if looking at all months (12 months), goal is 12 * 800K = 9.6M
@@ -559,16 +557,8 @@ export default {
 
     const allBacklogItems = ref([])
 
-    // Filter backlog based on inventory filters
-    const backlogItems = computed(() => {
-      if (selectedLocation.value === 'all' && selectedCategory.value === 'all') {
-        return allBacklogItems.value
-      }
-
-      // Get SKUs of items that match the filters
-      const validSkus = new Set(inventoryItems.value.map(item => item.sku))
-      return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
-    })
+    // Server filters backlog by its linked order (all four filters)
+    const backlogItems = computed(() => allBacklogItems.value)
 
     // One AbortController per loader: a new load cancels the previous in-flight one
     let summaryCtrl = null
@@ -581,12 +571,14 @@ export default {
         loading.value = true
         error.value = null
         const filters = getCurrentFilters()
-        const [summaryData, ordersData] = await Promise.all([
+        const [summaryData, ordersData, backlogData] = await Promise.all([
           api.getDashboardSummary(filters, { signal: ctrl.signal }),
-          api.getOrders(filters, { signal: ctrl.signal })
+          api.getOrders(filters, { signal: ctrl.signal }),
+          api.getBacklog(filters, { signal: ctrl.signal })
         ])
         summary.value = summaryData
         allOrders.value = ordersData
+        allBacklogItems.value = backlogData
       } catch (err) {
         if (isCanceled(err)) return
         error.value = t('common.loadFailed', { message: err.message })
@@ -600,12 +592,7 @@ export default {
       const ctrl = (inventoryCtrl = new AbortController())
       try {
         const filters = getCurrentFilters()
-        const [inventoryData, backlogData] = await Promise.all([
-          api.getInventory(filters, { signal: ctrl.signal }),
-          api.getBacklog({ signal: ctrl.signal })
-        ])
-        inventoryItems.value = inventoryData
-        allBacklogItems.value = backlogData
+        inventoryItems.value = await api.getInventory(filters, { signal: ctrl.signal })
       } catch (err) {
         if (isCanceled(err)) return
         error.value = t('common.loadFailed', { message: err.message })
@@ -617,9 +604,24 @@ export default {
       inventoryCtrl?.abort()
     })
 
-    const calculatePercentage = (value, goal) => {
-      return ((value / goal) * 100).toFixed(2)
+    const KPI_GOALS = { turnover: 4.5, fulfilled: 200, fillRate: 95, processing: 3.0 }
+    const makeKpi = (value, goal, lowerBetter = false) => {
+      if (value == null) return { display: '\u2014', delta: '\u2014', width: 0, good: false }
+      const ratio = lowerBetter ? goal / value : value / goal
+      const delta = (value / goal - 1) * 100
+      return {
+        display: value,
+        delta: (delta > 0 ? '+' : '') + delta.toFixed(1) + '%',
+        width: Math.max(0, Math.min(100, ratio * 100)),
+        good: lowerBetter ? value <= goal : value >= goal
+      }
     }
+    const kpis = computed(() => ({
+      turnover: makeKpi(summary.value.inventory_turnover, KPI_GOALS.turnover),
+      fulfilled: makeKpi(summary.value.orders_fulfilled, KPI_GOALS.fulfilled),
+      fillRate: makeKpi(summary.value.order_fill_rate, KPI_GOALS.fillRate),
+      processing: makeKpi(summary.value.avg_processing_days, KPI_GOALS.processing, true)
+    }))
 
     // Compute total orders once for efficiency
     const totalOrders = computed(() => {
@@ -716,7 +718,7 @@ export default {
     }
 
     // Watch for filter changes and reload data
-    // Summary + orders depend on all filters; inventory + backlog only on warehouse/category
+    // Summary, orders + backlog depend on all filters; inventory only on warehouse/category
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], loadSummary)
     watch([selectedLocation, selectedCategory], loadInventory)
 
@@ -730,8 +732,7 @@ export default {
       loading,
       error,
       summary,
-      ordersData,
-      fillRate,
+      kpis,
       statusData,
       orderHealthMetrics,
       categoryData,
@@ -740,7 +741,6 @@ export default {
       maxOrderCount,
       topProducts,
       backlogItems,
-      calculatePercentage,
       getCircleSegment,
       getStockBadge,
       translateCategory,
@@ -1031,10 +1031,12 @@ export default {
 
 .h-bar {
   height: 100%;
+  min-width: max-content; /* never narrower than its label */
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 0.75rem;
+  padding: 0 0.75rem;
   transition: width 0.6s ease;
 }
 

@@ -33,7 +33,7 @@ export const api = {
 
   getDemandForecasts: (options = {}) => get('/demand', undefined, options),
 
-  getBacklog: (options = {}) => get('/backlog', undefined, options),
+  getBacklog: (filters = {}, options = {}) => get('/backlog', buildParams(filters), options),
 
   getDashboardSummary: (filters = {}, options = {}) =>
     get('/dashboard/summary', buildParams(filters), options),
