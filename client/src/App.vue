@@ -53,6 +53,22 @@
           </svg>
         </button>
         <div class="topbar-actions">
+          <button
+            type="button"
+            class="theme-toggle"
+            :aria-label="dark ? t('nav.lightMode') : t('nav.darkMode')"
+            :title="dark ? t('nav.lightMode') : t('nav.darkMode')"
+            :aria-pressed="dark"
+            @click="toggleTheme"
+          >
+            <svg v-if="dark" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+            </svg>
+          </button>
           <LanguageSwitcher />
           <ProfileMenu
             @show-profile-details="showProfileDetails = true"
@@ -104,6 +120,7 @@ const navItems = [
 ]
 
 const STORAGE_KEY = 'sidebarCollapsed'
+const THEME_KEY = 'app-theme'
 
 export default {
   name: 'App',
@@ -208,6 +225,27 @@ export default {
       } catch (e) { /* storage unavailable */ }
     }
 
+    // Theme state
+    const readDark = () => {
+      try {
+        const stored = localStorage.getItem(THEME_KEY)
+        if (stored) return stored === 'dark'
+      } catch (e) { /* storage unavailable */ }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+
+    const dark = ref(readDark())
+    watch(dark, (v) => {
+      document.documentElement.dataset.theme = v ? 'dark' : 'light'
+    }, { immediate: true })
+
+    const toggleTheme = () => {
+      dark.value = !dark.value
+      try {
+        localStorage.setItem(THEME_KEY, dark.value ? 'dark' : 'light')
+      } catch (e) { /* storage unavailable */ }
+    }
+
     const onMobileChange = (e) => {
       isMobile.value = e.matches
       if (!e.matches) mobileOpen.value = false
@@ -240,6 +278,8 @@ export default {
       mobileOpen,
       isMobile,
       toggleCollapsed,
+      dark,
+      toggleTheme,
       showProfileDetails,
       showTasks,
       tasks,
@@ -264,6 +304,27 @@ export default {
   --warning: #ea580c;
   --danger: #dc2626;
   --info: #2563eb;
+  --surface-2: #f1f5f9;
+  --border-soft: #f1f5f9;
+  --border-strong: #cbd5e1;
+  --text-2: #334155;
+  --text-3: #475569;
+  --text-faint: #94a3b8;
+  --c-green-bg: #d1fae5;
+  --c-green-fg: #065f46;
+  --c-green-tint: #f0fdf4;
+  --c-orange-bg: #fed7aa;
+  --c-orange-fg: #92400e;
+  --c-amber-tint: #fffbeb;
+  --c-red-bg: #fecaca;
+  --c-red-bg-2: #fee2e2;
+  --c-red-fg: #991b1b;
+  --c-red-tint: #fef2f2;
+  --c-blue-bg: #dbeafe;
+  --c-blue-fg: #1e40af;
+  --c-indigo-bg: #e0e7ff;
+  --c-indigo-fg: #3730a3;
+  --c-violet-tint: #f5f3ff;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -282,6 +343,44 @@ export default {
   --content-max: 1440px;
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --surface: #111827;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #60a5fa;
+  --accent-soft: rgb(59 130 246 / 0.18);
+  --success: #34d399;
+  --warning: #fb923c;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --surface-2: #1e293b;
+  --border-soft: #1e293b;
+  --border-strong: #475569;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
+  --text-faint: #64748b;
+  --c-green-bg: rgb(16 185 129 / 0.2);
+  --c-green-fg: #6ee7b7;
+  --c-green-tint: rgb(16 185 129 / 0.1);
+  --c-orange-bg: rgb(249 115 22 / 0.2);
+  --c-orange-fg: #fdba74;
+  --c-amber-tint: rgb(245 158 11 / 0.1);
+  --c-red-bg: rgb(239 68 68 / 0.2);
+  --c-red-bg-2: rgb(239 68 68 / 0.2);
+  --c-red-fg: #fca5a5;
+  --c-red-tint: rgb(239 68 68 / 0.1);
+  --c-blue-bg: rgb(59 130 246 / 0.2);
+  --c-blue-fg: #93c5fd;
+  --c-indigo-bg: rgb(99 102 241 / 0.2);
+  --c-indigo-fg: #a5b4fc;
+  --c-violet-tint: rgb(139 92 246 / 0.1);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -292,7 +391,7 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   font-size: 14px;
   background: var(--bg);
-  color: #1e293b;
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -457,6 +556,28 @@ body {
   align-items: center;
   gap: var(--space-4);
   margin-left: auto;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: var(--bg);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .hamburger {
@@ -701,7 +822,7 @@ th {
 td {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border);
-  color: #334155;
+  color: var(--text-2);
   font-size: 14px;
 }
 
@@ -723,16 +844,16 @@ tbody tr:hover {
   letter-spacing: 0.025em;
 }
 
-.badge.success { background: #d1fae5; color: #065f46; }
-.badge.warning { background: #fed7aa; color: #92400e; }
-.badge.danger { background: #fecaca; color: #991b1b; }
-.badge.info { background: #dbeafe; color: #1e40af; }
-.badge.increasing { background: #d1fae5; color: #065f46; }
-.badge.decreasing { background: #fecaca; color: #991b1b; }
-.badge.stable { background: #e0e7ff; color: #3730a3; }
-.badge.high { background: #fecaca; color: #991b1b; }
-.badge.medium { background: #fed7aa; color: #92400e; }
-.badge.low { background: #dbeafe; color: #1e40af; }
+.badge.success { background: var(--c-green-bg); color: var(--c-green-fg); }
+.badge.warning { background: var(--c-orange-bg); color: var(--c-orange-fg); }
+.badge.danger { background: var(--c-red-bg); color: var(--c-red-fg); }
+.badge.info { background: var(--c-blue-bg); color: var(--c-blue-fg); }
+.badge.increasing { background: var(--c-green-bg); color: var(--c-green-fg); }
+.badge.decreasing { background: var(--c-red-bg); color: var(--c-red-fg); }
+.badge.stable { background: var(--c-indigo-bg); color: var(--c-indigo-fg); }
+.badge.high { background: var(--c-red-bg); color: var(--c-red-fg); }
+.badge.medium { background: var(--c-orange-bg); color: var(--c-orange-fg); }
+.badge.low { background: var(--c-blue-bg); color: var(--c-blue-fg); }
 
 .loading {
   text-align: center;
@@ -742,9 +863,9 @@ tbody tr:hover {
 }
 
 .error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--c-red-tint);
+  border: 1px solid var(--c-red-bg);
+  color: var(--c-red-fg);
   padding: var(--space-4);
   border-radius: 8px;
   margin: var(--space-4) 0;

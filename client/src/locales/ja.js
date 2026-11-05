@@ -8,6 +8,8 @@ export default {
     demandForecast: '需要予測',
     reports: 'レポート',
     collapseSidebar: 'サイドバーを折りたたむ',
+    darkMode: 'ダークモード',
+    lightMode: 'ライトモード',
     expandSidebar: 'サイドバーを展開',
     openMenu: 'メニューを開く',
     companyName: '触媒コンポーネンツ',
