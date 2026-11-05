@@ -39,6 +39,6 @@ Found while writing this documentation (2026-11-05). File references point to th
 
 ## Testing
 
-- No frontend tests.
+- Frontend tests cover the API client, `BaseModal`, the Backlog view, filters and locales; the other views have none.
 - `/api/reports/*` has one filter test; `/api/orders` only has pagination and quarter filter tests.
 - Tasks and purchase orders are kept in memory only; a server restart clears them.
