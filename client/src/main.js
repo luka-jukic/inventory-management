@@ -10,7 +10,8 @@ const router = createRouter({
     { path: '/orders', component: () => import('./views/Orders.vue') },
     { path: '/demand', component: () => import('./views/Demand.vue') },
     { path: '/spending', component: () => import('./views/Spending.vue') },
-    { path: '/reports', component: () => import('./views/Reports.vue') }
+    { path: '/reports', component: () => import('./views/Reports.vue') },
+    { path: '/backlog', component: () => import('./views/Backlog.vue') }
   ]
 })
 

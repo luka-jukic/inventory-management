@@ -119,6 +119,7 @@ const navItems = [
   { to: '/spending', labelKey: 'nav.finance', icon: ['M12 3v18', 'M16 7.5c0-1.4-1.8-2.5-4-2.5s-4 1.1-4 2.5S9.8 10 12 10s4 1.1 4 2.5-1.8 2.5-4 2.5-4-1.1-4-2.5'] },
   { to: '/demand', labelKey: 'nav.demandForecast', icon: ['M3 17l6-6 4 4 8-8', 'M15 7h6v6'] },
   { to: '/reports', labelKey: 'nav.reports', icon: ['M5 20V10', 'M12 20V4', 'M19 20v-7'] },
+  { to: '/backlog', labelKey: 'nav.backlog', icon: ['M9 6h11M9 12h11M9 18h11', 'M4 6h.01M4 12h.01M4 18h.01'] }
 ]
 
 const STORAGE_KEY = 'sidebarCollapsed'

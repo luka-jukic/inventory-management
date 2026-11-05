@@ -241,3 +241,19 @@ class TestRootEndpoint:
         assert "version" in data
         assert isinstance(data["message"], str)
         assert isinstance(data["version"], str)
+
+
+class TestReportFilters:
+    """Report endpoints must honor the global filter bar."""
+
+    def test_reports_respect_warehouse_and_month(self, client):
+        all_months = client.get("/api/reports/monthly-trends").json()
+        jan = client.get("/api/reports/monthly-trends", params={"month": "2025-01"}).json()
+        assert [m["month"] for m in jan] == ["2025-01"]
+
+        sf = client.get("/api/reports/monthly-trends", params={"warehouse": "San Francisco"}).json()
+        assert sum(m["order_count"] for m in sf) < sum(m["order_count"] for m in all_months)
+
+        q = client.get("/api/reports/quarterly", params={"month": "2025-01"}).json()
+        assert [r["quarter"] for r in q] == ["Q1-2025"]
+        assert q[0]["total_orders"] == jan[0]["order_count"]

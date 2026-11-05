@@ -65,6 +65,12 @@ export const api = {
     return (await client.post('/purchase-orders', purchaseOrderData, { signal: options.signal })).data
   },
 
+  getQuarterlyReports: (filters = {}, options = {}) =>
+    get('/reports/quarterly', buildParams(filters), options),
+
+  getMonthlyTrends: (filters = {}, options = {}) =>
+    get('/reports/monthly-trends', buildParams(filters), options),
+
   getPurchaseOrderByBacklogItem: (backlogItemId, options = {}) =>
     get(`/purchase-orders/${backlogItemId}`, undefined, options)
 }
