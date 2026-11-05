@@ -52,7 +52,9 @@ npm install && npm run dev
 - `GET /api/inventory` - Filters: warehouse, category
 - `GET /api/orders` - Filters: warehouse, category, status, month
 - `GET /api/dashboard/summary` - All filters
-- `GET /api/demand`, `/api/backlog` - No filters
+- `GET /api/backlog` - Filters: warehouse, category, status, month (via the linked order)
+- `GET /api/demand` - No filters
+- `GET /api/reports/quarterly`, `/api/reports/monthly-trends` - All filters
 - `GET /api/spending/*` - Summary, monthly, categories, transactions
 
 ## Common Issues

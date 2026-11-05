@@ -171,3 +171,42 @@ class TestDashboardEndpoints:
 
         # Allow small floating point differences
         assert abs(dashboard_data["total_inventory_value"] - expected_value) < 0.01
+
+
+class TestDashboardKpisAndBacklogFilters:
+    """KPIs and backlog count follow the global filters."""
+
+    def test_kpis_present(self, client):
+        data = client.get("/api/dashboard/summary").json()
+        for key in ["orders_fulfilled", "order_fill_rate", "avg_processing_days", "inventory_turnover"]:
+            assert key in data
+
+    def test_orders_fulfilled_matches_delivered_orders(self, client):
+        params = {"warehouse": "Tokyo"}
+        orders = client.get("/api/orders", params=params).json()
+        data = client.get("/api/dashboard/summary", params=params).json()
+        assert data["orders_fulfilled"] == sum(1 for o in orders if o["status"] == "Delivered")
+
+    def test_fill_rate_excludes_backordered(self, client):
+        orders = client.get("/api/orders").json()
+        backordered = sum(1 for o in orders if o["status"] == "Backordered")
+        data = client.get("/api/dashboard/summary").json()
+        assert abs(data["order_fill_rate"] - 100 * (1 - backordered / len(orders))) < 0.06
+
+    def test_kpis_empty_when_no_orders_match(self, client):
+        data = client.get("/api/dashboard/summary", params={"status": "nonexistent"}).json()
+        assert data["orders_fulfilled"] == 0
+        assert data["order_fill_rate"] is None
+        assert data["avg_processing_days"] is None
+
+    def test_backlog_items_link_to_existing_orders(self, client):
+        order_numbers = {o["order_number"] for o in client.get("/api/orders").json()}
+        for item in client.get("/api/backlog").json():
+            assert item["order_id"] in order_numbers
+
+    def test_backlog_count_follows_filters(self, client):
+        total = client.get("/api/dashboard/summary").json()["total_backlog_items"]
+        tokyo = client.get("/api/dashboard/summary", params={"warehouse": "Tokyo"}).json()["total_backlog_items"]
+        tokyo_items = client.get("/api/backlog", params={"warehouse": "Tokyo"}).json()
+        assert tokyo == len(tokyo_items)
+        assert 0 < tokyo < total

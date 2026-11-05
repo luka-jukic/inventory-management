@@ -88,7 +88,7 @@ export default {
     description: 'Track and manage all inventory items',
     stockLevels: 'Stock Levels',
     skus: 'SKUs',
-    searchPlaceholder: 'Search by item name...',
+    searchPlaceholder: 'Search by name, SKU or location...',
     clearSearch: 'Clear search',
     totalItems: 'Total Items',
     totalValue: 'Total Value',

@@ -82,8 +82,8 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
-import { api } from '../api'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { api, isCanceled } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
 
@@ -93,42 +93,24 @@ export default {
     const { t, translateProductName } = useI18n()
     const loading = ref(true)
     const error = ref(null)
-    const allBacklogItems = ref([])
-    const inventoryItems = ref([])
+    const backlogItems = ref([])
 
-    // Use shared filters
-    const { selectedLocation, selectedCategory, getCurrentFilters } = useFilters()
+    // Use shared filters; the server filters backlog by its linked order
+    const { selectedPeriod, selectedLocation, selectedCategory, selectedStatus, getCurrentFilters } = useFilters()
 
-    // Filter backlog based on inventory filters
-    const backlogItems = computed(() => {
-      if (selectedLocation.value === 'all' && selectedCategory.value === 'all') {
-        return allBacklogItems.value
-      }
-
-      // Get SKUs of items that match the filters
-      const validSkus = new Set(inventoryItems.value.map(item => item.sku))
-      return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
-    })
-
+    let ctrl = null
     const loadBacklog = async () => {
+      ctrl?.abort()
+      const current = (ctrl = new AbortController())
       try {
         loading.value = true
-        const filters = getCurrentFilters()
-
-        const [backlogData, inventoryData] = await Promise.all([
-          api.getBacklog(),
-          api.getInventory({
-            warehouse: filters.warehouse,
-            category: filters.category
-          })
-        ])
-
-        allBacklogItems.value = backlogData
-        inventoryItems.value = inventoryData
+        error.value = null
+        backlogItems.value = await api.getBacklog(getCurrentFilters(), { signal: current.signal })
       } catch (err) {
+        if (isCanceled(err)) return
         error.value = t('backlog.loadFailed') + err.message
       } finally {
-        loading.value = false
+        if (ctrl === current) loading.value = false
       }
     }
 
@@ -137,11 +119,10 @@ export default {
     }
 
     // Watch for filter changes and reload data
-    watch([selectedLocation, selectedCategory], () => {
-      loadBacklog()
-    })
+    watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], loadBacklog)
 
     onMounted(loadBacklog)
+    onUnmounted(() => ctrl?.abort())
 
     return {
       t,

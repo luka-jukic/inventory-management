@@ -96,7 +96,7 @@ The API base URL is hardcoded. To deploy elsewhere, change `api.js` (and the dir
 | `/demand` | `views/Demand.vue` | `nav.demandForecast` |
 | `/reports` | `views/Reports.vue` | `nav.reports` |
 
-`views/Backlog.vue` exists but has no route.
+`views/Backlog.vue` is routed at `/backlog`.
 
 ### Shell (`client/src/App.vue`)
 
@@ -159,8 +159,8 @@ Base URL `http://localhost:8001`. Interactive docs: `http://localhost:8001/docs`
 | `/api/orders` | `warehouse`, `category`, `status`, `month` | `Order[]` |
 | `/api/orders/{order_id}` | | `Order`, 404 if unknown |
 | `/api/demand` | | `DemandForecast[]` |
-| `/api/backlog` | | `BacklogItem[]` |
-| `/api/dashboard/summary` | `warehouse`, `category`, `status`, `month` | Summary object |
+| `/api/backlog` | `warehouse`, `category`, `status`, `month` (matched on the linked order) | `BacklogItem[]` |
+| `/api/dashboard/summary` | `warehouse`, `category`, `status`, `month` | Summary object, incl. KPIs `orders_fulfilled`, `order_fill_rate`, `avg_processing_days`, `inventory_turnover` |
 | `/api/spending/summary` | | Spending totals |
 | `/api/spending/monthly` | | 12 monthly cost records |
 | `/api/spending/categories` | | Cost per category |
@@ -210,7 +210,7 @@ Files in `server/data/`, loaded by `server/mock_data.py`. `server/generate_data.
 
 **DemandForecast:** `id`, `item_sku`, `item_name`, `current_demand`, `forecasted_demand`, `trend`, `period`.
 
-**BacklogItem:** `id`, `order_id`, `item_sku`, `item_name`, `quantity_needed`, `quantity_available`, `days_delayed`, `priority`, `has_purchase_order`.
+**BacklogItem:** `id`, `order_id` (an order's `order_number`), `item_sku`, `item_name`, `quantity_needed`, `quantity_available`, `days_delayed`, `priority`, `has_purchase_order`.
 
 **PurchaseOrder:** `id` (`PO-XXXXXXXX`), `backlog_item_id`, `supplier_name`, `quantity`, `unit_cost`, `expected_delivery_date`, `status` (`pending`), `created_date`, `notes`.
 
