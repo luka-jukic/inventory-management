@@ -7,6 +7,7 @@ export default {
     finance: '財務',
     demandForecast: '需要予測',
     reports: 'レポート',
+    backlog: 'バックログ',
     collapseSidebar: 'サイドバーを折りたたむ',
     darkMode: 'ダークモード',
     lightMode: 'ライトモード',
@@ -107,6 +108,58 @@ export default {
       totalValue: '総価値',
       location: '場所',
       status: 'ステータス'
+    }
+  },
+
+  // レポート
+  reports: {
+    title: 'パフォーマンスレポート',
+    description: '四半期ごとの業績指標と月次トレンドを表示します',
+    quarterlyPerformance: '四半期実績',
+    monthlyTrend: '月次売上推移',
+    momAnalysis: '前月比分析',
+    quarter: '四半期',
+    month: '月',
+    orders: '注文数',
+    revenue: '売上',
+    change: '増減',
+    growthRate: '成長率',
+    totalOrders: '総注文数',
+    totalRevenue: '総売上',
+    avgOrderValue: '平均注文額',
+    fulfillmentRate: '出荷完了率',
+    totalRevenueYtd: '総売上（年初来）',
+    avgMonthlyRevenue: '月平均売上',
+    totalOrdersYtd: '総注文数（年初来）',
+    bestQuarter: '最高業績の四半期',
+    notAvailable: '該当なし',
+    noData: '選択した条件に該当するデータがありません',
+    loadError: 'レポートの読み込みに失敗しました: {message}'
+  },
+
+  // Backlog
+  backlog: {
+    title: 'バックログ管理',
+    description: '在庫不足の追跡と解消',
+    loading: 'バックログを読み込み中...',
+    loadFailed: 'バックログの読み込みに失敗しました: ',
+    highPriority: '優先度：高',
+    mediumPriority: '優先度：中',
+    lowPriority: '優先度：低',
+    totalItems: 'バックログ項目合計',
+    itemsTitle: 'バックログ項目',
+    empty: 'バックログ項目はありません - すべての注文を履行できます！',
+    unitsShort: '{count}個不足',
+    daysCount: '{count}日',
+    table: {
+      orderId: '注文ID',
+      sku: 'SKU',
+      itemName: '商品名',
+      quantityNeeded: '必要数量',
+      quantityAvailable: '利用可能数量',
+      shortage: '不足',
+      daysDelayed: '遅延日数',
+      priority: '優先度'
     }
   },
 
@@ -359,6 +412,10 @@ export default {
 
   // Product Names
   productNames: {
+    'Oil Filter Cartridge': 'オイルフィルターカートリッジ',
+    'Electric Motor 5HP': '電動モーター 5HP',
+    'Pressure Relief Valve': '圧力逃がし弁',
+    'Industrial Widget Type A': '産業用ウィジェット タイプA',
     'Single Layer PCB Assembly': '単層PCB組立',
     'Dual Layer PCB Assembly': '二層PCB組立',
     'Multi Layer PCB Assembly': '多層PCB組立',
