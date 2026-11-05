@@ -300,7 +300,7 @@ export default {
 }
 
 .close-button:hover {
-  background: #f1f5f9;
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -430,8 +430,8 @@ export default {
 .error-text {
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--c-red-tint);
+  border: 1px solid var(--c-red-bg);
   color: var(--danger);
   font-size: 0.875rem;
 }
@@ -456,14 +456,14 @@ export default {
 }
 
 .btn-secondary {
-  background: #f1f5f9;
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  color: #334155;
+  color: var(--text-2);
 }
 
 .btn-secondary:hover {
   background: var(--border);
-  border-color: #cbd5e1;
+  border-color: var(--border-strong);
 }
 
 .btn-primary {
